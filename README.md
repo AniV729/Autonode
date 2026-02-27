@@ -1,29 +1,3 @@
-Conversation opened. 1 unread message.
-
-Skip to content
-Using University of Michigan Mail with screen readers
-
-1 of 12,051
-(no subject)
-Inbox
-
-Pedro Goulart Badelucci E Almeida
-Attachments
-3:57 PM (0 minutes ago)
-to me
-
-
-
---
-Pedro Goulart Badelucci E Almeida
-Engineering Undergraduate, Class of 2028
-College of Engineering
-University of Michigan- Ann Arbor
-palmeida@umich.edu | Linkedln | + 1 (616) 727-6279
- One attachment
-  •  Scanned by Gmail
-
-
 
 # SentinelMesh — AI Dead Zone Hunter
 
