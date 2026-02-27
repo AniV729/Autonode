@@ -2,7 +2,7 @@ import from main { Warehouse, Zone, Router, Sensor }
 
 with entry {
     print("╔═══════════════════════════════════════════╗");
-    print("║  SentinelMesh - AI Dead Zone Hunter        ║");
+    print("║  Autonode - AI Dead Zone Hunter        ║");
     print("║  Industrial IoT Connectivity Agent         ║");
     print("╚═══════════════════════════════════════════╝\n");
 

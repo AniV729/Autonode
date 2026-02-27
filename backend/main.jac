@@ -1,5 +1,5 @@
 """
-SentinelMesh — Core module
+Autonode — Core module
 """
 
 node Warehouse {
@@ -229,7 +229,7 @@ walker DispatchAgent {
 
         self.work_order = (
             "========================================\n"
-            "SENTINELMESH WORK ORDER\n"
+            "AUTONODE WORK ORDER\n"
             "========================================\n"
             f"Urgency:  {urgency}\n"
             f"Sensor:   {diag.get('sensor_id', 'N/A')} ({diag.get('sensor_type', 'N/A')})\n"
