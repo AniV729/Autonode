@@ -159,5 +159,3 @@ This means the entire backend — data model, business logic, and API — is exp
 ## Team
 
 Built for the Jaseci Hackathon 2026.
-README.md
-Displaying README.md.

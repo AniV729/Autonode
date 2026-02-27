@@ -323,6 +323,12 @@ export default function SentinelMesh() {
       borderBottom: "1px solid #1e3a5f",
       display: "flex", alignItems: "center", padding: "0 24px", gap: 16,
     },
+    brand: {
+      display: "flex", alignItems: "center", gap: 10,
+    },
+    brandLogo: {
+      width: 24, height: 24, objectFit: "contain",
+    },
     pill: (color) => ({
       display: "flex", alignItems: "center", gap: 6,
       background: color + "14", border: `1px solid ${color}44`,
@@ -386,10 +392,10 @@ export default function SentinelMesh() {
         ::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px;}
       `}</style>
 
-      <header style={st.header}>
+      <header style={s.header}>
         <div>
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>SentinelMesh</span>
-          <span style={{ fontSize: 10, color: "#475569", letterSpacing: "0.15em", marginLeft: 2 }}> / AI Dead Zone Hunter</span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>Autonode</span>
+          <span style={{ fontSize: 10, color: "#ffffff", letterSpacing: "0.15em", marginLeft: 2 }}> / AI Dead Zone Hunter</span>
         </div>
         <div style={{ flex: 1 }} />
         <span style={st.badge}>
