@@ -227,6 +227,32 @@ walker:pub api_simulate_dropout {
     }
 }
 
+walker:pub api_simulate_battery_dead {
+    has sensor_id: str = "SEN-042";
+
+    obj __specs__ {
+        static has auth: bool = False;
+    }
+
+    can start with entry {
+        for wh in [-->] {
+            for zone in [wh -->] {
+                for router in [zone -->] {
+                    for sensor in [router -->] {
+                        if sensor.sensor_id == self.sensor_id {
+                            sensor.last_ping = 1000.0;
+                            sensor.rssi = -55;
+                            sensor.battery = 5;
+                            sensor.status = "offline";
+                        }
+                    }
+                }
+            }
+        }
+        report {"status": "battery_dead_simulated", "sensor_id": self.sensor_id};
+    }
+}
+
 walker:pub api_run_pipeline {
     obj __specs__ {
         static has auth: bool = False;

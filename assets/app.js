@@ -53,6 +53,7 @@ const state = {
   freshLogKey: null,
   workOrders: [],
   running: false,
+  simMode: "heal",
   backendStatus: "connecting",
   backendReady: false,
   pollInterval: null,
@@ -67,6 +68,8 @@ const els = {
   mapArea: document.getElementById("map-area"),
   simBtn: document.getElementById("sim-btn"),
   resetBtn: document.getElementById("reset-btn"),
+  modeHeal: document.getElementById("mode-heal"),
+  modeDispatch: document.getElementById("mode-dispatch"),
   logBox: document.getElementById("log-box"),
   workOrdersWrap: document.getElementById("work-orders-wrap"),
   workOrdersTitle: document.getElementById("work-orders-title"),
@@ -241,7 +244,18 @@ function renderMap() {
 function renderSimulationButtons() {
   els.simBtn.disabled = state.running;
   els.simBtn.className = state.running ? "sim-btn running" : "sim-btn";
-  els.simBtn.textContent = state.running ? "⏳  Agents Running..." : "▶  Simulate Dropout - SEN-042";
+  if (state.running) {
+    els.simBtn.textContent = "⏳  Agents Running...";
+  } else if (state.simMode === "dispatch") {
+    els.simBtn.textContent = "▶  Simulate Battery Dead \u2014 SEN-042";
+  } else {
+    els.simBtn.textContent = "▶  Simulate Dropout \u2014 SEN-042";
+  }
+
+  if (els.modeHeal && els.modeDispatch) {
+    els.modeHeal.className = state.simMode === "heal" ? "mode-btn active" : "mode-btn";
+    els.modeDispatch.className = state.simMode === "dispatch" ? "mode-btn active" : "mode-btn";
+  }
 }
 
 function renderLogs() {
@@ -344,62 +358,110 @@ async function runSimulation() {
   render();
 
   if (state.backendReady) {
-    try {
-      addLog("HeartbeatMonitor", "Patrol cycle started - scanning 24 sensors", "info");
-      await apiPost("api_simulate_dropout", { sensor_id: "SEN-042" });
-      addLog("HeartbeatMonitor", "SEN-042 last_ping delta exceeded threshold - flagged OFFLINE", "error");
-      setSensorPatch("SEN-042", { status: "offline", rssi: -95 });
-      render();
-
-      await sleep(1000);
-      addLog("DeadZoneMapper", "Mapping dead zone around SEN-042...", "info");
-
-      await sleep(800);
-      addLog("RootCauseAnalyzer", "Analyzing root cause - battery, RSSI, router load...", "info");
-
-      const result = await apiPost("api_run_pipeline");
-
-      await sleep(600);
-      if (result && result.diagnoses && result.diagnoses.length > 0) {
-        const diag = result.diagnoses[0];
-        addLog("RootCauseAnalyzer", `cause: ${diag.cause}  confidence: ${Math.round((diag.confidence || 0.78) * 100)}%`, "success");
-        addLog("RootCauseAnalyzer", `action: ${diag.recommended_action}`, "info");
-      }
-
-      await sleep(600);
-      if (result && result.work_orders && result.work_orders.length > 0) {
-        addLog("DispatchAgent", "Generating work order...", "info");
-        await sleep(500);
-        addLog("DispatchAgent", "Work order dispatched to maintenance team ✓", "success");
-
-        const diag = (result.diagnoses && result.diagnoses[0]) || {};
-        state.workOrders = [{
-          id: `WO-${Date.now()}`,
-          sensor: "SEN-042",
-          cause: diag.cause || "HARDWARE_FAULT",
-          urgency: diag.cause === "BATTERY_DEAD" ? "CRITICAL" : "HIGH",
-          location: diag.location || "Cold Storage - Row 3, Bay 2",
-          action: diag.recommended_action || "Inspect sensor hardware on-site",
-          ts: Date.now(),
-        }];
-        render();
-      } else {
-        addLog("ReroutingAgent", "Attempting mesh reroute...", "info");
-        await sleep(800);
-        addLog("ReroutingAgent", "SEN-042 rerouted. Self-heal SUCCESS ✓", "success");
-        setSensorPatch("SEN-042", { status: "degraded" });
-        addLog("DispatchAgent", "Self-heal succeeded. No work order required.", "success");
-        render();
-      }
-    } catch (err) {
-      addLog("System", `Backend error: ${err.message}`, "error");
+    if (state.simMode === "dispatch") {
+      await runDispatchSimulation();
+    } else {
+      await runHealSimulation();
     }
-
     state.running = false;
     render();
     return;
   }
 
+  if (state.simMode === "dispatch") {
+    runFallbackDispatch();
+  } else {
+    runFallbackHeal();
+  }
+}
+
+async function runHealSimulation() {
+  try {
+    addLog("HeartbeatMonitor", "Patrol cycle started - scanning 24 sensors", "info");
+    await apiPost("api_simulate_dropout", { sensor_id: "SEN-042" });
+    addLog("HeartbeatMonitor", "SEN-042 last_ping delta exceeded threshold \u2014 flagged OFFLINE", "error");
+    setSensorPatch("SEN-042", { status: "offline", rssi: -95 });
+    render();
+
+    await sleep(1000);
+    addLog("DeadZoneMapper", "Mapping dead zone around SEN-042...", "info");
+
+    await sleep(800);
+    addLog("RootCauseAnalyzer", "Analyzing root cause - battery, RSSI, router load...", "info");
+
+    const result = await apiPost("api_run_pipeline");
+
+    await sleep(600);
+    if (result && result.diagnoses && result.diagnoses.length > 0) {
+      const diag = result.diagnoses[0];
+      addLog("RootCauseAnalyzer", `cause: ${diag.cause}  confidence: ${Math.round((diag.confidence || 0.78) * 100)}%`, "success");
+      addLog("RootCauseAnalyzer", `action: ${diag.recommended_action}`, "info");
+    }
+
+    await sleep(600);
+    addLog("ReroutingAgent", "RTR-002 load 68% > threshold. Scanning alternates...", "info");
+    await sleep(800);
+    addLog("ReroutingAgent", "RTR-003 candidate (load 41%). Creating new SignalPath edge.", "info");
+    await sleep(800);
+    addLog("ReroutingAgent", "SEN-042 rerouted via RTR-003. Self-heal SUCCESS \u2713", "success");
+    setSensorPatch("SEN-042", { status: "degraded" });
+    render();
+    await sleep(500);
+    addLog("DispatchAgent", "Self-heal succeeded. No work order required.", "success");
+  } catch (err) {
+    addLog("System", `Backend error: ${err.message}`, "error");
+  }
+}
+
+async function runDispatchSimulation() {
+  try {
+    addLog("HeartbeatMonitor", "Patrol cycle started \u2014 scanning 24 sensors", "info");
+    await apiPost("api_simulate_battery_dead", { sensor_id: "SEN-042" });
+
+    await sleep(1200);
+    addLog("HeartbeatMonitor", "SEN-042 last_ping delta: 7240s \u2014 critical", "warn");
+
+    await sleep(800);
+    addLog("HeartbeatMonitor", "SEN-042 flagged OFFLINE (severity: critical)", "error");
+    setSensorPatch("SEN-042", { status: "offline", rssi: -55, battery: 5 });
+    render();
+
+    await sleep(1500);
+    addLog("DeadZoneMapper", "Dead zone confirmed. 2 neighboring sensors also degraded.", "warn");
+
+    await sleep(1700);
+    addLog("RootCauseAnalyzer", "Querying LLM \u2014 battery:5%, router_load:42%, neighbors:2", "info");
+
+    await sleep(2200);
+    addLog("RootCauseAnalyzer", "LLM result \u2192 cause: BATTERY_DEAD  confidence: 97%", "success");
+
+    await sleep(1200);
+    addLog("ReroutingAgent", "Cause BATTERY_DEAD \u2014 mesh reroute cannot fix. Skipping.", "warn");
+
+    await sleep(1200);
+    addLog("DispatchAgent", "Generating work order via LLM...", "info");
+
+    const dispatchResult = await apiPost("api_dispatch", { sensor_id: "SEN-042" });
+
+    await sleep(2200);
+    addLog("DispatchAgent", "Work order dispatched to maintenance team \u2713", "success");
+
+    state.workOrders = [{
+      id: `WO-${Date.now()}`,
+      sensor: "SEN-042",
+      cause: "BATTERY_DEAD",
+      urgency: "CRITICAL",
+      location: "Cold Storage \u2014 Row 3, Bay 2 (near RTR-001)",
+      action: "Replace sensor battery immediately",
+      ts: Date.now(),
+    }];
+    render();
+  } catch (err) {
+    addLog("System", `Backend error: ${err.message}`, "error");
+  }
+}
+
+function runFallbackHeal() {
   const events = [
     { t: 0, agent: "HeartbeatMonitor", msg: "Patrol cycle started - scanning 24 sensors", type: "info" },
     { t: 1200, agent: "HeartbeatMonitor", msg: "SEN-042 last_ping delta: 614s - threshold exceeded", type: "warn" },
@@ -409,7 +471,7 @@ async function runSimulation() {
     { t: 6000, agent: "RootCauseAnalyzer", msg: "Analyzing - battery:87%, router_load:68%, neighbors:3", type: "info" },
     { t: 8200, agent: "RootCauseAnalyzer", msg: "cause: PHYSICAL_OBSTRUCTION  confidence: 78%", type: "success" },
     { t: 9500, agent: "ReroutingAgent", msg: "RTR-002 load 68% > threshold. Scanning alternates...", type: "info" },
-    { t: 11000, agent: "ReroutingAgent", msg: "SEN-042 rerouted via RTR-003. Self-heal SUCCESS ✓", type: "success", sid: "SEN-042", ns: "degraded" },
+    { t: 11000, agent: "ReroutingAgent", msg: "SEN-042 rerouted via RTR-003. Self-heal SUCCESS \u2713", type: "success", sid: "SEN-042", ns: "degraded" },
     { t: 12800, agent: "DispatchAgent", msg: "Self-heal succeeded. No work order required.", type: "success" },
   ];
 
@@ -418,6 +480,49 @@ async function runSimulation() {
       addLog(ev.agent, ev.msg, ev.type);
       if (ev.sid) {
         setSensorPatch(ev.sid, { status: ev.ns });
+        render();
+      }
+    }, ev.t);
+    state.timers.push(timer);
+  }
+
+  const endTimer = setTimeout(() => {
+    state.running = false;
+    render();
+  }, 14000);
+  state.timers.push(endTimer);
+}
+
+function runFallbackDispatch() {
+  const events = [
+    { t: 0, agent: "HeartbeatMonitor", msg: "Patrol cycle started \u2014 scanning 24 sensors", type: "info" },
+    { t: 1200, agent: "HeartbeatMonitor", msg: "SEN-042 last_ping delta: 7240s \u2014 critical", type: "warn" },
+    { t: 2000, agent: "HeartbeatMonitor", msg: "SEN-042 flagged OFFLINE (severity: critical)", type: "error", sid: "SEN-042", ns: "offline" },
+    { t: 3500, agent: "DeadZoneMapper", msg: "Dead zone confirmed. 2 neighboring sensors also degraded.", type: "warn" },
+    { t: 5200, agent: "RootCauseAnalyzer", msg: "Querying LLM \u2014 battery:12%, router_load:42%, neighbors:2", type: "info" },
+    { t: 7400, agent: "RootCauseAnalyzer", msg: "LLM result \u2192 cause: BATTERY_DEAD  confidence: 97%", type: "success" },
+    { t: 8600, agent: "ReroutingAgent", msg: "Cause BATTERY_DEAD \u2014 mesh reroute cannot fix. Skipping.", type: "warn" },
+    { t: 9800, agent: "DispatchAgent", msg: "Generating work order via LLM...", type: "info" },
+    { t: 12000, agent: "DispatchAgent", msg: "Work order dispatched to maintenance team \u2713", type: "success", wo: true },
+  ];
+
+  for (const ev of events) {
+    const timer = setTimeout(() => {
+      addLog(ev.agent, ev.msg, ev.type);
+      if (ev.sid) {
+        setSensorPatch(ev.sid, { status: ev.ns });
+        render();
+      }
+      if (ev.wo) {
+        state.workOrders = [{
+          id: `WO-${Date.now()}`,
+          sensor: "SEN-042",
+          cause: "BATTERY_DEAD",
+          urgency: "CRITICAL",
+          location: "Cold Storage \u2014 Row 3, Bay 2 (near RTR-001)",
+          action: "Replace sensor battery immediately",
+          ts: Date.now(),
+        }];
         render();
       }
     }, ev.t);
@@ -523,6 +628,15 @@ async function initBackend() {
 function wireEvents() {
   els.simBtn.addEventListener("click", runSimulation);
   els.resetBtn.addEventListener("click", handleReset);
+
+  if (els.modeHeal && els.modeDispatch) {
+    els.modeHeal.addEventListener("click", () => {
+      if (!state.running) { state.simMode = "heal"; render(); }
+    });
+    els.modeDispatch.addEventListener("click", () => {
+      if (!state.running) { state.simMode = "dispatch"; render(); }
+    });
+  }
 
   els.mapArea.addEventListener("click", (event) => {
     const sensorNode = event.target.closest("[data-sensor-id]");
