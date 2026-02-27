@@ -1,19 +1,50 @@
 """
-SentinelMesh - REST API Server
+Autonode - REST API Server
 """
 
 import from main {
     Warehouse, Zone, Router, Sensor
 }
 
-walker :pub api_setup {
+walker:pub api_setup {
     has facility_name: str = "Meridian Industrial Campus";
+
+    obj __specs__ {
+        static has auth: bool = False;
+    }
 
     can start with entry {
         t = 9999999999.0;
+        existing_wh = 0;
+        existing_zones = 0;
+        existing_routers = 0;
+        existing_sensors = 0;
+
+        for wh in [-->] {
+            existing_wh += 1;
+            for zone in [wh -->] {
+                existing_zones += 1;
+                for router in [zone -->] {
+                    existing_routers += 1;
+                    for _sensor in [router -->] {
+                        existing_sensors += 1;
+                    }
+                }
+            }
+        }
+
+        if existing_wh > 0 {
+            report {
+                "status": "already_initialized",
+                "zones": existing_zones,
+                "routers": existing_routers,
+                "sensors": existing_sensors
+            };
+            return;
+        }
 
         wh = Warehouse("Meridian Industrial Campus", "FAC-007");
-        root ++> wh;
+        here ++> wh;
 
         cold  = Zone("Cold Storage",    "refrigerated", 20.0,  50.0,  300.0, 350.0, "#0ea5e9");
         assy  = Zone("Assembly Floor",  "production",   370.0, 50.0,  290.0, 300.0, "#f59e0b");
@@ -71,7 +102,11 @@ walker :pub api_setup {
     }
 }
 
-walker :pub api_state {
+walker:pub api_state {
+    obj __specs__ {
+        static has auth: bool = False;
+    }
+
     can start with entry {
         zones_data = [];
         routers_data = [];
@@ -119,7 +154,11 @@ walker :pub api_state {
     }
 }
 
-walker :pub api_heartbeat {
+walker:pub api_heartbeat {
+    obj __specs__ {
+        static has auth: bool = False;
+    }
+
     can start with entry {
         alerts = [];
         now_t = 9999999999.0;
@@ -163,8 +202,12 @@ walker :pub api_heartbeat {
     }
 }
 
-walker :pub api_simulate_dropout {
+walker:pub api_simulate_dropout {
     has sensor_id: str = "SEN-042";
+
+    obj __specs__ {
+        static has auth: bool = False;
+    }
 
     can start with entry {
         for wh in [-->] {
@@ -184,7 +227,11 @@ walker :pub api_simulate_dropout {
     }
 }
 
-walker :pub api_run_pipeline {
+walker:pub api_run_pipeline {
+    obj __specs__ {
+        static has auth: bool = False;
+    }
+
     can start with entry {
         alerts = [];
         diagnoses = [];
@@ -260,7 +307,11 @@ walker :pub api_run_pipeline {
     }
 }
 
-walker :pub api_reset {
+walker:pub api_reset {
+    obj __specs__ {
+        static has auth: bool = False;
+    }
+
     can start with entry {
         count = 0;
         for wh in [-->] {
@@ -281,8 +332,12 @@ walker :pub api_reset {
     }
 }
 
-walker :pub api_diagnose {
+walker:pub api_diagnose {
     has sensor_id: str = "SEN-042";
+
+    obj __specs__ {
+        static has auth: bool = False;
+    }
 
     can start with entry {
         result = {};
@@ -323,8 +378,12 @@ walker :pub api_diagnose {
     }
 }
 
-walker :pub api_dispatch {
+walker:pub api_dispatch {
     has sensor_id: str = "SEN-042";
+
+    obj __specs__ {
+        static has auth: bool = False;
+    }
 
     can start with entry {
         work_order = "";
@@ -347,7 +406,7 @@ walker :pub api_dispatch {
                             }
                             work_order = (
                                 "========================================\n"
-                                "SENTINELMESH WORK ORDER\n"
+                                "AUTONODE WORK ORDER\n"
                                 "========================================\n"
                                 f"Urgency:  {urgency}\n"
                                 f"Sensor:   {sensor.sensor_id} ({sensor.sensor_type})\n"
