@@ -27,3 +27,5 @@ venv/
 .venv/
 env/
 ENV/
+
+node_modules

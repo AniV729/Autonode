@@ -1,5 +1,5 @@
 """
-SentinelMesh - REST API Server
+autonode - REST API Server
 """
 
 import from main {
@@ -379,7 +379,7 @@ walker api_dispatch {
                             }
                             work_order = (
                                 "========================================\n"
-                                "SENTINELMESH WORK ORDER\n"
+                                "autonode WORK ORDER\n"
                                 "========================================\n"
                                 f"Urgency:  {urgency}\n"
                                 f"Sensor:   {sensor.sensor_id} ({sensor.sensor_type})\n"

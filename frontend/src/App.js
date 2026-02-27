@@ -130,7 +130,7 @@ function RouterNode({ router }) {
   );
 }
 
-export default function SentinelMesh() {
+export default function autonode() {
   const [sensors, setSensors]           = useState(INITIAL_SENSORS);
   const [routers, setRouters]           = useState(ROUTERS_FALLBACK);
   const [selected, setSelected]         = useState(null);
@@ -156,7 +156,7 @@ export default function SentinelMesh() {
   useEffect(() => {
     async function init() {
       try {
-        addLog("System", "Connecting to SentinelMesh Jac backend…", "info");
+        addLog("System", "Connecting to autonode Jac backend…", "info");
         await apiPost("api_setup");
         addLog("System", "Warehouse graph initialized ✓", "success");
         const state = await apiPost("api_state");
@@ -373,7 +373,7 @@ export default function SentinelMesh() {
 
       <header style={s.header}>
         <div>
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>SentinelMesh</span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>autonode</span>
           <span style={{ fontSize: 10, color: "#475569", letterSpacing: "0.15em", marginLeft: 2 }}> / AI Dead Zone Hunter</span>
         </div>
         <div style={{ flex: 1 }} />

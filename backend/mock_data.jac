@@ -1,5 +1,5 @@
 ﻿"""
-SentinelMesh — Mock Data Seeder
+autonode — Mock Data Seeder
 """
 
 import from main { Warehouse, Zone, Router, Sensor }
