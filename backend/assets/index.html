@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Autonode / AI Dead Zone Hunter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div id="app" class="root">
+    <header class="header">
+      <div>
+        <span class="title">Autonode</span>
+        <span class="subtitle"> / AI Dead Zone Hunter</span>
+      </div>
+      <div class="header-spacer"></div>
+      <span id="backend-badge" class="badge">⟳ CONNECTING</span>
+      <div class="pill pill-online"><span class="dot pulse"></span><span id="online-count">0</span> online</div>
+      <div class="pill pill-degraded"><span class="dot"></span><span id="degraded-count">0</span> degraded</div>
+      <div class="pill pill-offline"><span class="dot"></span><span id="offline-count">0</span> offline</div>
+    </header>
+
+    <main id="map-area" class="map-area"></main>
+
+    <aside class="sidebar">
+      <div class="section-header">Simulation</div>
+      <button id="sim-btn" class="sim-btn">▶  Simulate Dropout - SEN-042</button>
+      <button id="reset-btn" class="reset-btn">↺ Reset All Sensors</button>
+
+      <div class="section-header">Agent Feed</div>
+      <div id="log-box" class="log-box"></div>
+
+      <div id="work-orders-wrap" class="hidden">
+        <div id="work-orders-title" class="section-header">Work Orders (0)</div>
+        <div id="work-orders" class="work-orders"></div>
+      </div>
+
+      <div id="sensor-detail" class="sensor-detail hidden"></div>
+    </aside>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
