@@ -1,15 +1,15 @@
 
-# SentinelMesh — AI Dead Zone Hunter
+# Autonode — AI Dead Zone Hunter
 
 > Industrial IoT mesh network monitoring with autonomous AI agents built on Jac / Jaseci
 
-![SentinelMesh Dashboard](https://img.shields.io/badge/status-live-22c55e?style=flat-square) ![Jac](https://img.shields.io/badge/backend-Jac%200.11.2-38bdf8?style=flat-square) ![React](https://img.shields.io/badge/frontend-React-61dafb?style=flat-square)
+![Autonode Dashboard](https://img.shields.io/badge/status-live-22c55e?style=flat-square) ![Jac](https://img.shields.io/badge/backend-Jac%200.11.2-38bdf8?style=flat-square) ![React](https://img.shields.io/badge/frontend-React-61dafb?style=flat-square)
 
 ---
 
 ## What It Does
 
-SentinelMesh is a real-time IoT sensor monitoring platform that uses **autonomous AI agents** to detect, diagnose, and respond to sensor failures in an industrial warehouse — automatically, without human intervention.
+Autonode is a real-time IoT sensor monitoring platform that uses **autonomous AI agents** to detect, diagnose, and respond to sensor failures in an industrial warehouse — automatically, without human intervention.
 
 When a sensor goes dark, a pipeline of 5 specialized agents fires:
 
@@ -128,7 +128,7 @@ All endpoints are `POST` with a JSON body.
 ## Project Structure
 
 ```
-SentinelMesh/
+Autonode/
 ├── backend/
 │   ├── main.jac          # Node/edge definitions + walker agents
 │   ├── server.jac        # REST API walker endpoints
@@ -136,7 +136,7 @@ SentinelMesh/
 │   ├── run.jac           # CLI demo runner
 │   └── jac.toml          # Project config
 ├── src/
-│   ├── SentinelMesh.jsx  # Main React dashboard
+│   ├── Autonode.jsx  # Main React dashboard
 │   └── App.js
 └── README.md
 ```
