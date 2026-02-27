@@ -69,9 +69,9 @@ function AgentBadge({ name }) {
     RootCauseAnalyzer: "#f59e0b",
     ReroutingAgent:    "#10b981",
     DispatchAgent:     "#ef4444",
-    System:            "#64748b",
+    System:            "#ffffff",
   };
-  const c = colors[name] || "#94a3b8";
+  const c = colors[name] || "#ffffff";
   return (
     <span style={{
       fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
@@ -82,14 +82,14 @@ function AgentBadge({ name }) {
 }
 
 function LogEntry({ entry, fresh }) {
-  const typeStyle = { info: "#94a3b8", warn: "#f59e0b", error: "#ef4444", success: "#22c55e" };
+  const typeStyle = { info: "#ffffff", warn: "#f59e0b", error: "#ef4444", success: "#22c55e" };
   return (
     <div style={{
       display: "flex", gap: 10, alignItems: "flex-start",
       padding: "7px 0", borderBottom: "1px solid #ffffff08",
       animation: fresh ? "fadeSlide 0.3s ease" : "none",
     }}>
-      <span style={{ fontSize: 10, color: "#475569", fontFamily: "monospace", whiteSpace: "nowrap", marginTop: 2 }}>
+      <span style={{ fontSize: 10, color: "#ffffff", fontFamily: "monospace", whiteSpace: "nowrap", marginTop: 2 }}>
         {new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
       </span>
       <AgentBadge name={entry.agent} />
@@ -130,7 +130,7 @@ function RouterNode({ router }) {
   );
 }
 
-export default function SentinelMesh() {
+export default function Autonode() {
   const [sensors, setSensors]           = useState(INITIAL_SENSORS);
   const [routers, setRouters]           = useState(ROUTERS_FALLBACK);
   const [selected, setSelected]         = useState(null);
@@ -156,7 +156,7 @@ export default function SentinelMesh() {
   useEffect(() => {
     async function init() {
       try {
-        addLog("System", "Connecting to SentinelMesh Jac backend…", "info");
+        addLog("System", "Connecting to Autonode Jac backend…", "info");
         await apiPost("api_setup");
         addLog("System", "Warehouse graph initialized ✓", "success");
         const state = await apiPost("api_state");
@@ -326,7 +326,7 @@ export default function SentinelMesh() {
       display: "flex", flexDirection: "column", overflow: "hidden",
     },
     sh: {
-      fontSize: 10, letterSpacing: "0.12em", color: "#475569",
+      fontSize: 10, letterSpacing: "0.12em", color: "#ffffff",
       fontWeight: 700, textTransform: "uppercase",
       padding: "14px 16px 6px", borderBottom: "1px solid #1e3a5f",
     },
@@ -334,7 +334,7 @@ export default function SentinelMesh() {
       margin: "12px 16px", padding: "10px 0",
       background: running ? "#1e293b" : "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)",
       border: "none", borderRadius: 6,
-      color: running ? "#475569" : "#fff",
+      color: "#fff",
       fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
       cursor: running ? "not-allowed" : "pointer",
       textTransform: "uppercase", fontFamily: "inherit",
@@ -342,7 +342,7 @@ export default function SentinelMesh() {
     resetBtn: {
       margin: "0 16px 12px", padding: "6px 0",
       background: "transparent", border: "1px solid #1e3a5f",
-      borderRadius: 6, color: "#475569", fontSize: 11,
+      borderRadius: 6, color: "#ffffff", fontSize: 11,
       cursor: "pointer", fontFamily: "inherit",
     },
     logBox: {
@@ -373,8 +373,8 @@ export default function SentinelMesh() {
 
       <header style={s.header}>
         <div>
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>SentinelMesh</span>
-          <span style={{ fontSize: 10, color: "#475569", letterSpacing: "0.15em", marginLeft: 2 }}> / AI Dead Zone Hunter</span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>Autonode</span>
+          <span style={{ fontSize: 10, color: "#ffffff", letterSpacing: "0.15em", marginLeft: 2 }}> / AI Dead Zone Hunter</span>
         </div>
         <div style={{ flex: 1 }} />
         <span style={s.badge}>
@@ -406,7 +406,6 @@ export default function SentinelMesh() {
               </text>
             </g>
           ))}
-          {routers.map(r => <RouterNode key={r.id} router={r} />)}
           {sensors.map(sen => {
             const router = routers.find(r => r.id === sen.router);
             if (!router) return null;
@@ -419,6 +418,7 @@ export default function SentinelMesh() {
                 strokeDasharray={sen.status === "offline" ? "4,4" : "none"} />
             );
           })}
+          {routers.map(r => <RouterNode key={r.id} router={r} />)}
           {sensors.map(sen => (
             <SensorNode key={sen.id} sensor={sen} selected={selected?.id === sen.id} onClick={setSelected} />
           ))}
@@ -449,7 +449,7 @@ export default function SentinelMesh() {
         <div style={s.sh}>Agent Feed</div>
         <div ref={logRef} style={s.logBox}>
           {log.length === 0 && (
-            <div style={{ color: "#334155", fontSize: 11, padding: "12px 0", textAlign: "center" }}>
+            <div style={{ color: "#ffffff", fontSize: 11, padding: "12px 0", textAlign: "center" }}>
               No events yet. Run a simulation.
             </div>
           )}
@@ -468,9 +468,9 @@ export default function SentinelMesh() {
                     <span style={{ color: "#ef4444", fontWeight: 700 }}>{wo.id}</span>
                     <span style={{ background: "#ef444422", color: "#ef4444", borderRadius: 3, padding: "1px 6px", fontSize: 10 }}>{wo.urgency}</span>
                   </div>
-                  <div style={{ color: "#94a3b8", marginBottom: 4 }}>📍 {wo.location}</div>
+                  <div style={{ color: "#ffffff", marginBottom: 4 }}>📍 {wo.location}</div>
                   <div style={{ color: "#f59e0b", marginBottom: 6 }}>⚠ {wo.cause}</div>
-                  <div style={{ color: "#64748b" }}>→ {wo.action}</div>
+                  <div style={{ color: "#ffffff" }}>→ {wo.action}</div>
                 </div>
               ))}
             </div>
@@ -479,7 +479,7 @@ export default function SentinelMesh() {
 
         {selected && (
           <div style={s.detail}>
-            <div style={{ color: "#475569", fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>SENSOR DETAIL</div>
+            <div style={{ color: "#ffffff", fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>SENSOR DETAIL</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px" }}>
               {[
                 ["ID", selected.id],
@@ -491,13 +491,13 @@ export default function SentinelMesh() {
                 ["Status", selected.status.toUpperCase()],
               ].map(([k, v]) => (
                 <>
-                  <span style={{ color: "#475569", fontSize: 11 }}>{k}</span>
+                  <span style={{ color: "#ffffff", fontSize: 11 }}>{k}</span>
                   <span style={{ color: STATUS_COLOR[selected.status]?.dot || "#22c55e", fontSize: 11, fontWeight: 700 }}>{v}</span>
                 </>
               ))}
             </div>
             <button onClick={() => setSelected(null)}
-              style={{ marginTop: 10, background: "transparent", border: "1px solid #1e3a5f", borderRadius: 4, color: "#475569", fontSize: 10, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+              style={{ marginTop: 10, background: "transparent", border: "1px solid #1e3a5f", borderRadius: 4, color: "#ffffff", fontSize: 10, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
               CLOSE ✕
             </button>
           </div>
