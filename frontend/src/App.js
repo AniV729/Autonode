@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 
 const API = "http://localhost:8000";
 
-// ─── FALLBACK MOCK DATA ───────────────────────────────────────────────────────
 const INITIAL_SENSORS = [
   { id: "SEN-001", type: "temp",      zone: "Cold Storage",    router: "RTR-001", x: 100, y: 130, status: "online",   rssi: -52, battery: 91 },
   { id: "SEN-002", type: "temp",      zone: "Cold Storage",    router: "RTR-001", x: 200, y: 100, status: "online",   rssi: -58, battery: 84 },
@@ -10,7 +9,7 @@ const INITIAL_SENSORS = [
   { id: "SEN-004", type: "vibration", zone: "Cold Storage",    router: "RTR-001", x: 65,  y: 240, status: "online",   rssi: -55, battery: 88 },
   { id: "SEN-005", type: "asset",     zone: "Cold Storage",    router: "RTR-001", x: 240, y: 160, status: "online",   rssi: -49, battery: 95 },
   { id: "SEN-006", type: "temp",      zone: "Assembly Floor",  router: "RTR-002", x: 420, y: 90,  status: "online",   rssi: -60, battery: 72 },
-  { id: "SEN-007", type: "vibration", zone: "Assembly Floor",  router: "RTR-002", x: 510, y: 140, status: "online",   rssi: -63, battery: 68 },
+  { id: "SEN-007", type: "vibration", zone: "Assembly Floor",  router: "RTR-002", x: 510, y: 140, status: "online",   rssi: -55, battery: 68 },
   { id: "SEN-008", type: "vibration", zone: "Assembly Floor",  router: "RTR-002", x: 590, y: 80,  status: "online",   rssi: -57, battery: 81 },
   { id: "SEN-009", type: "gas",       zone: "Assembly Floor",  router: "RTR-002", x: 455, y: 210, status: "online",   rssi: -54, battery: 90 },
   { id: "SEN-010", type: "temp",      zone: "Assembly Floor",  router: "RTR-002", x: 555, y: 230, status: "online",   rssi: -66, battery: 63 },
@@ -69,9 +68,9 @@ function AgentBadge({ name }) {
     RootCauseAnalyzer: "#f59e0b",
     ReroutingAgent:    "#10b981",
     DispatchAgent:     "#ef4444",
-    System:            "#ffffff",
+    System:            "#64748b",
   };
-  const c = colors[name] || "#ffffff";
+  const c = colors[name] || "#94a3b8";
   return (
     <span style={{
       fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
@@ -82,14 +81,14 @@ function AgentBadge({ name }) {
 }
 
 function LogEntry({ entry, fresh }) {
-  const typeStyle = { info: "#ffffff", warn: "#f59e0b", error: "#ef4444", success: "#22c55e" };
+  const typeStyle = { info: "#94a3b8", warn: "#f59e0b", error: "#ef4444", success: "#22c55e" };
   return (
     <div style={{
       display: "flex", gap: 10, alignItems: "flex-start",
       padding: "7px 0", borderBottom: "1px solid #ffffff08",
       animation: fresh ? "fadeSlide 0.3s ease" : "none",
     }}>
-      <span style={{ fontSize: 10, color: "#ffffff", fontFamily: "monospace", whiteSpace: "nowrap", marginTop: 2 }}>
+      <span style={{ fontSize: 10, color: "#475569", fontFamily: "monospace", whiteSpace: "nowrap", marginTop: 2 }}>
         {new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
       </span>
       <AgentBadge name={entry.agent} />
@@ -101,6 +100,7 @@ function LogEntry({ entry, fresh }) {
 function SensorNode({ sensor, selected, onClick }) {
   const sc = STATUS_COLOR[sensor.status] || STATUS_COLOR.online;
   const r = selected ? 14 : 10;
+  const isDemo = sensor.id === "SEN-042" || sensor.id === "SEN-007";
   return (
     <g transform={`translate(${sensor.x}, ${sensor.y})`} style={{ cursor: "pointer" }} onClick={() => onClick(sensor)}>
       {sensor.status !== "online" && (
@@ -108,6 +108,9 @@ function SensorNode({ sensor, selected, onClick }) {
           <animate attributeName="r" values="14;26;14" dur="2s" repeatCount="indefinite" />
           <animate attributeName="opacity" values="0.12;0.04;0.12" dur="2s" repeatCount="indefinite" />
         </circle>
+      )}
+      {isDemo && sensor.status === "online" && (
+        <circle r="16" fill="none" stroke="#ffffff" strokeWidth="1" strokeDasharray="3,3" opacity="0.2" />
       )}
       <circle r={r} fill={sc.dot} stroke={selected ? "#fff" : "#060d1a"} strokeWidth={selected ? 2.5 : 1.5}
         style={{ filter: `drop-shadow(${sc.glow})`, transition: "r 0.2s" }} />
@@ -130,7 +133,7 @@ function RouterNode({ router }) {
   );
 }
 
-export default function Autonode() {
+export default function SentinelMesh() {
   const [sensors, setSensors]           = useState(INITIAL_SENSORS);
   const [routers, setRouters]           = useState(ROUTERS_FALLBACK);
   const [selected, setSelected]         = useState(null);
@@ -152,11 +155,10 @@ export default function Autonode() {
     setFreshLog(agent + msg);
   }
 
-  // Init backend on mount
   useEffect(() => {
     async function init() {
       try {
-        addLog("System", "Connecting to Autonode Jac backend…", "info");
+        addLog("System", "Connecting to SentinelMesh Jac backend…", "info");
         await apiPost("api_setup");
         addLog("System", "Warehouse graph initialized ✓", "success");
         const state = await apiPost("api_state");
@@ -182,7 +184,6 @@ export default function Autonode() {
     init();
   }, []);
 
-  // Poll live state every 5s
   useEffect(() => {
     if (!backendReady) return;
     const interval = setInterval(async () => {
@@ -199,7 +200,8 @@ export default function Autonode() {
     return () => clearInterval(interval);
   }, [backendReady]);
 
-  async function runSimulation() {
+  // ── Generic simulation runner ──────────────────────────────────────────────
+  async function runSim(targetId, scenario) {
     if (running) return;
     setRunning(true);
     setLog([]);
@@ -207,15 +209,15 @@ export default function Autonode() {
 
     if (backendReady) {
       try {
-        addLog("HeartbeatMonitor", "Patrol cycle started — scanning 24 sensors", "info");
-        await apiPost("api_simulate_dropout", { sensor_id: "SEN-042" });
-        addLog("HeartbeatMonitor", "SEN-042 last_ping delta exceeded threshold — flagged OFFLINE", "error");
-        setSensors(prev => prev.map(s => s.id === "SEN-042" ? { ...s, status: "offline", rssi: -95 } : s));
+        addLog("HeartbeatMonitor", `Patrol cycle started — scanning 24 sensors`, "info");
+        await apiPost("api_simulate_dropout", { sensor_id: targetId });
+        addLog("HeartbeatMonitor", `${targetId} last_ping delta exceeded threshold — flagged OFFLINE`, "error");
+        setSensors(prev => prev.map(s => s.id === targetId ? { ...s, status: "offline", rssi: s.rssi - 40 } : s));
 
         await new Promise(r => setTimeout(r, 1000));
-        addLog("DeadZoneMapper", "Mapping dead zone around SEN-042…", "info");
+        addLog("DeadZoneMapper", `Mapping dead zone around ${targetId}…`, "info");
         await new Promise(r => setTimeout(r, 800));
-        addLog("RootCauseAnalyzer", "Analyzing root cause — battery, RSSI, router load…", "info");
+        addLog("RootCauseAnalyzer", `Analyzing — battery, RSSI, router load for ${targetId}…`, "info");
 
         const result = await apiPost("api_run_pipeline");
         await new Promise(r => setTimeout(r, 600));
@@ -233,20 +235,20 @@ export default function Autonode() {
           await new Promise(r => setTimeout(r, 500));
           addLog("DispatchAgent", "Work order dispatched to maintenance team ✓", "success");
           const diag = result.diagnoses?.[0] || {};
-          setWorkOrders([{
+          setWorkOrders(prev => [{
             id: `WO-${Date.now()}`,
-            sensor: "SEN-042",
+            sensor: targetId,
             cause: diag.cause || "HARDWARE_FAULT",
             urgency: diag.cause === "BATTERY_DEAD" ? "CRITICAL" : "HIGH",
-            location: diag.location || "Cold Storage — Row 3, Bay 2",
+            location: diag.location || "See sensor detail",
             action: diag.recommended_action || "Inspect sensor hardware on-site",
             ts: Date.now(),
-          }]);
+          }, ...prev]);
         } else {
-          addLog("ReroutingAgent", "Attempting mesh reroute…", "info");
+          addLog("ReroutingAgent", `Scanning alternate routers for ${targetId}…`, "info");
           await new Promise(r => setTimeout(r, 800));
-          addLog("ReroutingAgent", "SEN-042 rerouted. Self-heal SUCCESS ✓", "success");
-          setSensors(prev => prev.map(s => s.id === "SEN-042" ? { ...s, status: "degraded" } : s));
+          addLog("ReroutingAgent", `${targetId} rerouted successfully. Self-heal SUCCESS ✓`, "success");
+          setSensors(prev => prev.map(s => s.id === targetId ? { ...s, status: "degraded" } : s));
           addLog("DispatchAgent", "Self-heal succeeded. No work order required.", "success");
         }
       } catch (e) {
@@ -254,8 +256,8 @@ export default function Autonode() {
       }
       setRunning(false);
     } else {
-      // Demo fallback
-      const events = [
+      // Demo fallback events per scenario
+      const events = scenario === "sen042" ? [
         { t: 0,     agent: "HeartbeatMonitor",   msg: "Patrol cycle started — scanning 24 sensors", type: "info" },
         { t: 1200,  agent: "HeartbeatMonitor",   msg: "SEN-042 last_ping delta: 614s — threshold exceeded", type: "warn" },
         { t: 2000,  agent: "HeartbeatMonitor",   msg: "SEN-042 flagged OFFLINE (severity: critical)", type: "error", sid: "SEN-042", ns: "offline" },
@@ -266,7 +268,20 @@ export default function Autonode() {
         { t: 9500,  agent: "ReroutingAgent",     msg: "RTR-002 load 68% > threshold. Scanning alternates…", type: "info" },
         { t: 11000, agent: "ReroutingAgent",     msg: "SEN-042 rerouted via RTR-003. Self-heal SUCCESS ✓", type: "success", sid: "SEN-042", ns: "degraded" },
         { t: 12800, agent: "DispatchAgent",      msg: "Self-heal succeeded. No work order required.", type: "success" },
+      ] : [
+        { t: 0,     agent: "HeartbeatMonitor",   msg: "Patrol cycle started — scanning 24 sensors", type: "info" },
+        { t: 1000,  agent: "HeartbeatMonitor",   msg: "SEN-007 last_ping delta: 892s — critical threshold exceeded", type: "warn" },
+        { t: 1800,  agent: "HeartbeatMonitor",   msg: "SEN-007 flagged OFFLINE (Assembly Floor — CNC Machine 1)", type: "error", sid: "SEN-007", ns: "offline" },
+        { t: 3000,  agent: "DeadZoneMapper",     msg: "Dead zone confirmed. RTR-002 serving 7 sensors at 68% load.", type: "warn" },
+        { t: 4200,  agent: "RootCauseAnalyzer",  msg: "Analyzing — battery:68%, router_load:68%, rssi:-55", type: "info" },
+        { t: 6400,  agent: "RootCauseAnalyzer",  msg: "cause: ROUTER_OVERLOAD  confidence: 84%", type: "success" },
+        { t: 7200,  agent: "RootCauseAnalyzer",  msg: "action: Redistribute load from RTR-002 to adjacent router", type: "info" },
+        { t: 8400,  agent: "ReroutingAgent",     msg: "RTR-002 at capacity. Evaluating RTR-004 (load: 28%)…", type: "info" },
+        { t: 10200, agent: "ReroutingAgent",     msg: "New SignalPath edge created: SEN-007 → RTR-004", type: "info" },
+        { t: 11800, agent: "ReroutingAgent",     msg: "SEN-007 rerouted via RTR-004. Self-heal SUCCESS ✓", type: "success", sid: "SEN-007", ns: "degraded" },
+        { t: 13000, agent: "DispatchAgent",      msg: "Mesh rebalanced. No dispatch required.", type: "success" },
       ];
+
       events.forEach(ev => {
         const tid = setTimeout(() => {
           addLog(ev.agent, ev.msg, ev.type);
@@ -294,7 +309,7 @@ export default function Autonode() {
   const degraded = sensors.filter(s => s.status === "degraded").length;
   const offline  = sensors.filter(s => s.status === "offline").length;
 
-  const s = {
+  const st = {
     root: {
       fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
       background: "#060d1a", color: "#e2e8f0", minHeight: "100vh",
@@ -326,23 +341,23 @@ export default function Autonode() {
       display: "flex", flexDirection: "column", overflow: "hidden",
     },
     sh: {
-      fontSize: 10, letterSpacing: "0.12em", color: "#ffffff",
+      fontSize: 10, letterSpacing: "0.12em", color: "#475569",
       fontWeight: 700, textTransform: "uppercase",
       padding: "14px 16px 6px", borderBottom: "1px solid #1e3a5f",
     },
-    simBtn: {
-      margin: "12px 16px", padding: "10px 0",
-      background: running ? "#1e293b" : "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)",
+    simBtn: (color) => ({
+      margin: "8px 16px 0", padding: "10px 0",
+      background: running ? "#1e293b" : `linear-gradient(135deg, ${color} 0%, ${color}99 100%)`,
       border: "none", borderRadius: 6,
-      color: "#fff",
-      fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
+      color: running ? "#475569" : "#fff",
+      fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
       cursor: running ? "not-allowed" : "pointer",
       textTransform: "uppercase", fontFamily: "inherit",
-    },
+    }),
     resetBtn: {
-      margin: "0 16px 12px", padding: "6px 0",
+      margin: "8px 16px 4px", padding: "6px 0",
       background: "transparent", border: "1px solid #1e3a5f",
-      borderRadius: 6, color: "#ffffff", fontSize: 11,
+      borderRadius: 6, color: "#475569", fontSize: 11,
       cursor: "pointer", fontFamily: "inherit",
     },
     logBox: {
@@ -350,7 +365,7 @@ export default function Autonode() {
       scrollbarWidth: "thin", scrollbarColor: "#1e3a5f transparent",
     },
     woBox: {
-      maxHeight: 220, overflowY: "auto", padding: "0 16px 12px",
+      maxHeight: 200, overflowY: "auto", padding: "0 16px 12px",
       scrollbarWidth: "thin", scrollbarColor: "#1e3a5f transparent",
     },
     woCard: {
@@ -361,7 +376,7 @@ export default function Autonode() {
   };
 
   return (
-    <div style={s.root}>
+    <div style={st.root}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap');
         @keyframes fadeSlide { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
@@ -371,24 +386,24 @@ export default function Autonode() {
         ::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px;}
       `}</style>
 
-      <header style={s.header}>
+      <header style={st.header}>
         <div>
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>Autonode</span>
-          <span style={{ fontSize: 10, color: "#ffffff", letterSpacing: "0.15em", marginLeft: 2 }}> / AI Dead Zone Hunter</span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>SentinelMesh</span>
+          <span style={{ fontSize: 10, color: "#475569", letterSpacing: "0.15em", marginLeft: 2 }}> / AI Dead Zone Hunter</span>
         </div>
         <div style={{ flex: 1 }} />
-        <span style={s.badge}>
+        <span style={st.badge}>
           {backendStatus === "live" ? "● LIVE JAC" : backendStatus === "demo" ? "◌ DEMO" : "⟳ CONNECTING"}
         </span>
-        <div style={s.pill("#22c55e")}>
+        <div style={st.pill("#22c55e")}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block", animation: "pulse 2s infinite" }} />
           {online} online
         </div>
-        <div style={s.pill("#f59e0b")}>
+        <div style={st.pill("#f59e0b")}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#f59e0b", display: "inline-block" }} />
           {degraded} degraded
         </div>
-        <div style={s.pill("#ef4444")}>
+        <div style={st.pill("#ef4444")}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#ef4444", display: "inline-block" }} />
           {offline} offline
         </div>
@@ -406,6 +421,7 @@ export default function Autonode() {
               </text>
             </g>
           ))}
+          {routers.map(r => <RouterNode key={r.id} router={r} />)}
           {sensors.map(sen => {
             const router = routers.find(r => r.id === sen.router);
             if (!router) return null;
@@ -418,11 +434,11 @@ export default function Autonode() {
                 strokeDasharray={sen.status === "offline" ? "4,4" : "none"} />
             );
           })}
-          {routers.map(r => <RouterNode key={r.id} router={r} />)}
           {sensors.map(sen => (
             <SensorNode key={sen.id} sensor={sen} selected={selected?.id === sen.id} onClick={setSelected} />
           ))}
         </svg>
+
         <div style={{
           position: "absolute", bottom: 16, left: 16,
           background: "#0b162888", backdropFilter: "blur(8px)",
@@ -436,20 +452,28 @@ export default function Autonode() {
           <span style={{ color: "#22c55e" }}>● online</span>
           <span style={{ color: "#f59e0b" }}>● degraded</span>
           <span style={{ color: "#ef4444" }}>● offline</span>
+          <span style={{ color: "#334155" }}>|</span>
+          <span style={{ color: "#64748b", fontSize: 10 }}>dashed ring = demo sensor</span>
         </div>
       </main>
 
-      <aside style={s.sidebar}>
-        <div style={s.sh}>Simulation</div>
-        <button style={s.simBtn} onClick={runSimulation} disabled={running}>
-          {running ? "⏳  Agents Running…" : "▶  Simulate Dropout — SEN-042"}
-        </button>
-        <button style={s.resetBtn} onClick={handleReset}>↺ Reset All Sensors</button>
+      <aside style={st.sidebar}>
+        <div style={st.sh}>Simulations</div>
 
-        <div style={s.sh}>Agent Feed</div>
-        <div ref={logRef} style={s.logBox}>
+        <button style={st.simBtn("#0ea5e9")} onClick={() => runSim("SEN-042", "sen042")} disabled={running}>
+          {running ? "⏳  Agents Running…" : "▶  SEN-042 — Cold Storage Dropout"}
+        </button>
+
+        <button style={st.simBtn("#f59e0b")} onClick={() => runSim("SEN-007", "sen007")} disabled={running}>
+          {running ? "⏳  Agents Running…" : "▶  SEN-007 — Assembly Floor Dropout"}
+        </button>
+
+        <button style={st.resetBtn} onClick={handleReset}>↺ Reset All Sensors</button>
+
+        <div style={st.sh}>Agent Feed</div>
+        <div ref={logRef} style={st.logBox}>
           {log.length === 0 && (
-            <div style={{ color: "#ffffff", fontSize: 11, padding: "12px 0", textAlign: "center" }}>
+            <div style={{ color: "#334155", fontSize: 11, padding: "12px 0", textAlign: "center" }}>
               No events yet. Run a simulation.
             </div>
           )}
@@ -460,17 +484,17 @@ export default function Autonode() {
 
         {workOrders.length > 0 && (
           <>
-            <div style={s.sh}>Work Orders ({workOrders.length})</div>
-            <div style={s.woBox}>
+            <div style={st.sh}>Work Orders ({workOrders.length})</div>
+            <div style={st.woBox}>
               {workOrders.map(wo => (
-                <div key={wo.id} style={s.woCard}>
+                <div key={wo.id} style={st.woCard}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ color: "#ef4444", fontWeight: 700 }}>{wo.id}</span>
                     <span style={{ background: "#ef444422", color: "#ef4444", borderRadius: 3, padding: "1px 6px", fontSize: 10 }}>{wo.urgency}</span>
                   </div>
-                  <div style={{ color: "#ffffff", marginBottom: 4 }}>📍 {wo.location}</div>
+                  <div style={{ color: "#94a3b8", marginBottom: 4 }}>📍 {wo.location}</div>
                   <div style={{ color: "#f59e0b", marginBottom: 6 }}>⚠ {wo.cause}</div>
-                  <div style={{ color: "#ffffff" }}>→ {wo.action}</div>
+                  <div style={{ color: "#64748b" }}>→ {wo.action}</div>
                 </div>
               ))}
             </div>
@@ -478,8 +502,8 @@ export default function Autonode() {
         )}
 
         {selected && (
-          <div style={s.detail}>
-            <div style={{ color: "#ffffff", fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>SENSOR DETAIL</div>
+          <div style={st.detail}>
+            <div style={{ color: "#475569", fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>SENSOR DETAIL</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px" }}>
               {[
                 ["ID", selected.id],
@@ -491,13 +515,13 @@ export default function Autonode() {
                 ["Status", selected.status.toUpperCase()],
               ].map(([k, v]) => (
                 <>
-                  <span style={{ color: "#ffffff", fontSize: 11 }}>{k}</span>
+                  <span style={{ color: "#475569", fontSize: 11 }}>{k}</span>
                   <span style={{ color: STATUS_COLOR[selected.status]?.dot || "#22c55e", fontSize: 11, fontWeight: 700 }}>{v}</span>
                 </>
               ))}
             </div>
             <button onClick={() => setSelected(null)}
-              style={{ marginTop: 10, background: "transparent", border: "1px solid #1e3a5f", borderRadius: 4, color: "#ffffff", fontSize: 10, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+              style={{ marginTop: 10, background: "transparent", border: "1px solid #1e3a5f", borderRadius: 4, color: "#475569", fontSize: 10, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
               CLOSE ✕
             </button>
           </div>
