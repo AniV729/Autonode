@@ -1,0 +1,4 @@
+jaclang
+jac-mcp
+requests
+python-dotenv
