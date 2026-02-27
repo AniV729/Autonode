@@ -1,3 +1,4 @@
+
 [project]
 name = "SentinelMesh"
 version = "0.1.0"
@@ -8,3 +9,6 @@ entry-point = "server.jac"
 
 [dev-dependencies]
 watchdog = ">=3.0.0"
+
+[jac-cloud]
+disable_auth = true
