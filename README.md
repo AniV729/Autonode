@@ -27,20 +27,20 @@ When a sensor goes dark, a pipeline of 5 specialized agents fires:
 
 ```
 ┌─────────────────────────────────┐
-│   React Frontend (localhost:3000)│
-│   Live SVG warehouse map         │
-│   Real-time agent feed           │
-│   Work order display             │
+│  React Frontend (localhost:3000)│
+│  Live SVG warehouse map         │
+│  Real-time agent feed           │
+│  Work order display             │
 └────────────┬────────────────────┘
              │ HTTP (REST)
 ┌────────────▼────────────────────┐
-│   Jac Backend (localhost:8000)  │
-│   jac start server.jac          │
-│                                  │
-│   Graph: Warehouse               │
-│     └── Zone (x4)               │
-│           └── Router (x4)       │
-│                 └── Sensor (x24)│
+│  Jac Backend (localhost:8000)   │
+│  jac start server.jac           │
+│                                 │
+│  Graph: Warehouse               │
+│    └── Zone (x4)                │
+│          └── Router (x4)        │
+│                └── Sensor (x24) │
 └─────────────────────────────────┘
 ```
 
@@ -159,5 +159,3 @@ This means the entire backend — data model, business logic, and API — is exp
 ## Team
 
 Built for the Jaseci Hackathon 2026.
-README.md
-Displaying README.md.
