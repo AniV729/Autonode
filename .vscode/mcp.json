@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "jaseci": {
+      "command": "C:\\Users\\aniru\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+      "args": ["-m", "jac_mcp.server"],
+      "env": {
+        "JAC_PROJECT_ROOT": "${workspaceFolder}"
+      }
+    }
+  }
+}

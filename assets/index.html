@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SentinelMesh — AI Dead Zone Hunter</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#060d1a;overflow:hidden;}
+    @keyframes fadeSlide{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px;}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const API = "";
+
+    const INITIAL_SENSORS = [
+      { id: "SEN-001", type: "temp",      zone: "Cold Storage",    router: "RTR-001", x: 100, y: 130, status: "online",   rssi: -52, battery: 91 },
+      { id: "SEN-002", type: "temp",      zone: "Cold Storage",    router: "RTR-001", x: 200, y: 100, status: "online",   rssi: -58, battery: 84 },
+      { id: "SEN-003", type: "gas",       zone: "Cold Storage",    router: "RTR-001", x: 155, y: 200, status: "online",   rssi: -61, battery: 77 },
+      { id: "SEN-004", type: "vibration", zone: "Cold Storage",    router: "RTR-001", x: 65,  y: 240, status: "online",   rssi: -55, battery: 88 },
+      { id: "SEN-005", type: "asset",     zone: "Cold Storage",    router: "RTR-001", x: 240, y: 160, status: "online",   rssi: -49, battery: 95 },
+      { id: "SEN-006", type: "temp",      zone: "Assembly Floor",  router: "RTR-002", x: 420, y: 90,  status: "online",   rssi: -60, battery: 72 },
+      { id: "SEN-007", type: "vibration", zone: "Assembly Floor",  router: "RTR-002", x: 510, y: 140, status: "online",   rssi: -63, battery: 68 },
+      { id: "SEN-008", type: "vibration", zone: "Assembly Floor",  router: "RTR-002", x: 590, y: 80,  status: "online",   rssi: -57, battery: 81 },
+      { id: "SEN-009", type: "gas",       zone: "Assembly Floor",  router: "RTR-002", x: 455, y: 210, status: "online",   rssi: -54, battery: 90 },
+      { id: "SEN-010", type: "temp",      zone: "Assembly Floor",  router: "RTR-002", x: 555, y: 230, status: "online",   rssi: -66, battery: 63 },
+      { id: "SEN-011", type: "asset",     zone: "Assembly Floor",  router: "RTR-002", x: 400, y: 270, status: "online",   rssi: -59, battery: 75 },
+      { id: "SEN-042", type: "temp",      zone: "Cold Storage",    router: "RTR-001", x: 130, y: 320, status: "online",   rssi: -55, battery: 87 },
+      { id: "SEN-013", type: "gas",       zone: "Loading Bay",     router: "RTR-003", x: 700, y: 150, status: "online",   rssi: -62, battery: 79 },
+      { id: "SEN-014", type: "asset",     zone: "Loading Bay",     router: "RTR-003", x: 780, y: 100, status: "online",   rssi: -58, battery: 86 },
+      { id: "SEN-015", type: "temp",      zone: "Loading Bay",     router: "RTR-003", x: 740, y: 230, status: "online",   rssi: -70, battery: 55 },
+      { id: "SEN-016", type: "vibration", zone: "Loading Bay",     router: "RTR-003", x: 840, y: 180, status: "online",   rssi: -65, battery: 71 },
+      { id: "SEN-017", type: "gas",       zone: "Maintenance Bay", router: "RTR-004", x: 430, y: 450, status: "online",   rssi: -53, battery: 93 },
+      { id: "SEN-018", type: "vibration", zone: "Maintenance Bay", router: "RTR-004", x: 520, y: 400, status: "online",   rssi: -60, battery: 80 },
+      { id: "SEN-019", type: "temp",      zone: "Maintenance Bay", router: "RTR-004", x: 610, y: 490, status: "online",   rssi: -56, battery: 88 },
+      { id: "SEN-020", type: "asset",     zone: "Maintenance Bay", router: "RTR-004", x: 700, y: 450, status: "online",   rssi: -67, battery: 64 },
+      { id: "SEN-021", type: "temp",      zone: "Maintenance Bay", router: "RTR-004", x: 470, y: 540, status: "online",   rssi: -61, battery: 76 },
+      { id: "SEN-022", type: "gas",       zone: "Cold Storage",    router: "RTR-001", x: 220, y: 300, status: "online",   rssi: -54, battery: 89 },
+      { id: "SEN-023", type: "asset",     zone: "Assembly Floor",  router: "RTR-002", x: 630, y: 170, status: "online",   rssi: -58, battery: 82 },
+      { id: "SEN-024", type: "vibration", zone: "Loading Bay",     router: "RTR-003", x: 800, y: 270, status: "online",   rssi: -63, battery: 70 },
+    ];
+
+    const ROUTERS_FALLBACK = [
+      { id: "RTR-001", zone: "Cold Storage",    x: 160, y: 230, load: 32 },
+      { id: "RTR-002", zone: "Assembly Floor",  x: 510, y: 175, load: 68 },
+      { id: "RTR-003", zone: "Loading Bay",     x: 760, y: 185, load: 41 },
+      { id: "RTR-004", zone: "Maintenance Bay", x: 565, y: 465, load: 28 },
+    ];
+
+    const ZONES = [
+      { name: "Cold Storage",    x: 20,  y: 50,  w: 300, h: 350, color: "#0ea5e9" },
+      { name: "Assembly Floor",  x: 370, y: 50,  w: 290, h: 300, color: "#f59e0b" },
+      { name: "Loading Bay",     x: 670, y: 50,  w: 210, h: 300, color: "#8b5cf6" },
+      { name: "Maintenance Bay", x: 370, y: 360, w: 390, h: 240, color: "#10b981" },
+    ];
+
+    const TYPE_ICONS = { temp: "\u{1F321}", vibration: "\u{1F4F3}", gas: "\u{1F4A8}", asset: "\u{1F4E6}" };
+    const STATUS_COLOR = {
+      online:   { dot: "#22c55e", glow: "0 0 8px #22c55e88" },
+      degraded: { dot: "#f59e0b", glow: "0 0 8px #f59e0b88" },
+      offline:  { dot: "#ef4444", glow: "0 0 12px #ef444499" },
+    };
+
+    async function apiPost(endpoint, body = {}) {
+      const res = await fetch(`${API}/walker/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.reports && data.reports.length > 0) return data.reports[0];
+      return data;
+    }
+
+    function AgentBadge({ name }) {
+      const colors = {
+        HeartbeatMonitor:  "#0ea5e9",
+        DeadZoneMapper:    "#8b5cf6",
+        RootCauseAnalyzer: "#f59e0b",
+        ReroutingAgent:    "#10b981",
+        DispatchAgent:     "#ef4444",
+        System:            "#64748b",
+      };
+      const c = colors[name] || "#94a3b8";
+      return (
+        <span style={{
+          fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+          color: c, background: c + "18", border: `1px solid ${c}44`,
+          borderRadius: 3, padding: "1px 6px", letterSpacing: "0.04em", whiteSpace: "nowrap",
+        }}>{name}</span>
+      );
+    }
+
+    function LogEntry({ entry, fresh }) {
+      const typeStyle = { info: "#94a3b8", warn: "#f59e0b", error: "#ef4444", success: "#22c55e" };
+      return (
+        <div style={{
+          display: "flex", gap: 10, alignItems: "flex-start",
+          padding: "7px 0", borderBottom: "1px solid #ffffff08",
+          animation: fresh ? "fadeSlide 0.3s ease" : "none",
+        }}>
+          <span style={{ fontSize: 10, color: "#475569", fontFamily: "monospace", whiteSpace: "nowrap", marginTop: 2 }}>
+            {new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          </span>
+          <AgentBadge name={entry.agent} />
+          <span style={{ fontSize: 12, color: typeStyle[entry.type], lineHeight: 1.5 }}>{entry.msg}</span>
+        </div>
+      );
+    }
+
+    function SensorNode({ sensor, selected, onClick }) {
+      const sc = STATUS_COLOR[sensor.status] || STATUS_COLOR.online;
+      const r = selected ? 14 : 10;
+      return (
+        <g transform={`translate(${sensor.x}, ${sensor.y})`} style={{ cursor: "pointer" }} onClick={() => onClick(sensor)}>
+          {sensor.status !== "online" && (
+            <circle r="20" fill={sc.dot} opacity="0.12">
+              <animate attributeName="r" values="14;26;14" dur="2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.12;0.04;0.12" dur="2s" repeatCount="indefinite" />
+            </circle>
+          )}
+          <circle r={r} fill={sc.dot} stroke={selected ? "#fff" : "#060d1a"} strokeWidth={selected ? 2.5 : 1.5}
+            style={{ filter: `drop-shadow(${sc.glow})`, transition: "r 0.2s" }} />
+          <text textAnchor="middle" dominantBaseline="central" fontSize="11" style={{ userSelect: "none", pointerEvents: "none" }}>
+            {TYPE_ICONS[sensor.type]}
+          </text>
+        </g>
+      );
+    }
+
+    function RouterNode({ router }) {
+      const loadColor = router.load > 70 ? "#ef4444" : router.load > 50 ? "#f59e0b" : "#22c55e";
+      return (
+        <g transform={`translate(${router.x}, ${router.y})`}>
+          <rect x="-22" y="-14" width="44" height="28" rx="4" fill="#1e293b" stroke={loadColor} strokeWidth="1.5"
+            style={{ filter: `drop-shadow(0 0 4px ${loadColor}66)` }} />
+          <text textAnchor="middle" dominantBaseline="central" fontSize="14" fill={loadColor} fontFamily="monospace" fontWeight="700">{"\u{1F4E1}"}</text>
+          <text textAnchor="middle" y="22" fontSize="9" fill={loadColor} fontFamily="monospace" fontWeight="700">{router.id}</text>
+        </g>
+      );
+    }
+
+    function SentinelMesh() {
+      const [sensors, setSensors]           = useState(INITIAL_SENSORS);
+      const [routers, setRouters]           = useState(ROUTERS_FALLBACK);
+      const [selected, setSelected]         = useState(null);
+      const [log, setLog]                   = useState([]);
+      const [freshLog, setFreshLog]         = useState(null);
+      const [workOrders, setWorkOrders]     = useState([]);
+      const [running, setRunning]           = useState(false);
+      const [backendStatus, setBackendStatus] = useState("connecting");
+      const [backendReady, setBackendReady] = useState(false);
+      const logRef = useRef(null);
+      const timersRef = useRef([]);
+
+      useEffect(() => {
+        if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+      }, [log]);
+
+      function addLog(agent, msg, type = "info") {
+        setLog(prev => [...prev, { agent, msg, type, ts: Date.now() }]);
+        setFreshLog(agent + msg);
+      }
+
+      useEffect(() => {
+        async function init() {
+          try {
+            addLog("System", "Connecting to SentinelMesh Jac backend\u2026", "info");
+            await apiPost("api_setup");
+            addLog("System", "Warehouse graph initialized \u2713", "success");
+            const state = await apiPost("api_state");
+            if (state && state.sensors && state.sensors.length > 0) {
+              setSensors(state.sensors.map(s => ({
+                id: s.id, type: s.type, zone: s.zone, router: s.router,
+                x: s.x, y: s.y, status: s.status, rssi: s.rssi, battery: s.battery,
+              })));
+              if (state.routers && state.routers.length > 0) {
+                setRouters(state.routers.map(r => ({
+                  id: r.router_id, zone: r.zone, x: r.x, y: r.y, load: r.load,
+                })));
+              }
+              addLog("System", `${state.sensors.length} sensors loaded from live Jac graph \u2713`, "success");
+            }
+            setBackendReady(true);
+            setBackendStatus("live");
+          } catch (e) {
+            addLog("System", "Backend unavailable \u2014 running in demo mode", "warn");
+            setBackendStatus("demo");
+          }
+        }
+        init();
+      }, []);
+
+      useEffect(() => {
+        if (!backendReady) return;
+        const interval = setInterval(async () => {
+          try {
+            const state = await apiPost("api_state");
+            if (state && state.sensors && state.sensors.length > 0) {
+              setSensors(prev => prev.map(s => {
+                const live = state.sensors.find(ls => ls.id === s.id);
+                return live ? { ...s, status: live.status, rssi: live.rssi, battery: live.battery } : s;
+              }));
+            }
+          } catch (e) {}
+        }, 5000);
+        return () => clearInterval(interval);
+      }, [backendReady]);
+
+      async function runSimulation() {
+        if (running) return;
+        setRunning(true);
+        setLog([]);
+        setWorkOrders([]);
+
+        if (backendReady) {
+          try {
+            addLog("HeartbeatMonitor", "Patrol cycle started \u2014 scanning 24 sensors", "info");
+            await apiPost("api_simulate_dropout", { sensor_id: "SEN-042" });
+            addLog("HeartbeatMonitor", "SEN-042 last_ping delta exceeded threshold \u2014 flagged OFFLINE", "error");
+            setSensors(prev => prev.map(s => s.id === "SEN-042" ? { ...s, status: "offline", rssi: -95 } : s));
+
+            await new Promise(r => setTimeout(r, 1000));
+            addLog("DeadZoneMapper", "Mapping dead zone around SEN-042\u2026", "info");
+            await new Promise(r => setTimeout(r, 800));
+            addLog("RootCauseAnalyzer", "Analyzing root cause \u2014 battery, RSSI, router load\u2026", "info");
+
+            const result = await apiPost("api_run_pipeline");
+            await new Promise(r => setTimeout(r, 600));
+
+            if (result && result.diagnoses && result.diagnoses.length > 0) {
+              const diag = result.diagnoses[0];
+              addLog("RootCauseAnalyzer", `cause: ${diag.cause}  confidence: ${Math.round((diag.confidence || 0.78) * 100)}%`, "success");
+              addLog("RootCauseAnalyzer", `action: ${diag.recommended_action}`, "info");
+            }
+
+            await new Promise(r => setTimeout(r, 600));
+
+            if (result && result.work_orders && result.work_orders.length > 0) {
+              addLog("DispatchAgent", "Generating work order\u2026", "info");
+              await new Promise(r => setTimeout(r, 500));
+              addLog("DispatchAgent", "Work order dispatched to maintenance team \u2713", "success");
+              const diag = (result.diagnoses && result.diagnoses[0]) || {};
+              setWorkOrders([{
+                id: `WO-${Date.now()}`,
+                sensor: "SEN-042",
+                cause: diag.cause || "HARDWARE_FAULT",
+                urgency: diag.cause === "BATTERY_DEAD" ? "CRITICAL" : "HIGH",
+                location: diag.location || "Cold Storage \u2014 Row 3, Bay 2",
+                action: diag.recommended_action || "Inspect sensor hardware on-site",
+                ts: Date.now(),
+              }]);
+            } else {
+              addLog("ReroutingAgent", "Attempting mesh reroute\u2026", "info");
+              await new Promise(r => setTimeout(r, 800));
+              addLog("ReroutingAgent", "SEN-042 rerouted. Self-heal SUCCESS \u2713", "success");
+              setSensors(prev => prev.map(s => s.id === "SEN-042" ? { ...s, status: "degraded" } : s));
+              addLog("DispatchAgent", "Self-heal succeeded. No work order required.", "success");
+            }
+          } catch (e) {
+            addLog("System", `Backend error: ${e.message}`, "error");
+          }
+          setRunning(false);
+        } else {
+          const events = [
+            { t: 0,     agent: "HeartbeatMonitor",   msg: "Patrol cycle started \u2014 scanning 24 sensors", type: "info" },
+            { t: 1200,  agent: "HeartbeatMonitor",   msg: "SEN-042 last_ping delta: 614s \u2014 threshold exceeded", type: "warn" },
+            { t: 2000,  agent: "HeartbeatMonitor",   msg: "SEN-042 flagged OFFLINE (severity: critical)", type: "error", sid: "SEN-042", ns: "offline" },
+            { t: 3400,  agent: "DeadZoneMapper",     msg: "Mapping dead zone around SEN-042\u2026", type: "info" },
+            { t: 4600,  agent: "DeadZoneMapper",     msg: "RSSI neighbors: -71, -74, -68 dBm. Zone isolated.", type: "info" },
+            { t: 6000,  agent: "RootCauseAnalyzer",  msg: "Analyzing \u2014 battery:87%, router_load:68%, neighbors:3", type: "info" },
+            { t: 8200,  agent: "RootCauseAnalyzer",  msg: "cause: PHYSICAL_OBSTRUCTION  confidence: 78%", type: "success" },
+            { t: 9500,  agent: "ReroutingAgent",     msg: "RTR-002 load 68% > threshold. Scanning alternates\u2026", type: "info" },
+            { t: 11000, agent: "ReroutingAgent",     msg: "SEN-042 rerouted via RTR-003. Self-heal SUCCESS \u2713", type: "success", sid: "SEN-042", ns: "degraded" },
+            { t: 12800, agent: "DispatchAgent",      msg: "Self-heal succeeded. No work order required.", type: "success" },
+          ];
+          events.forEach(ev => {
+            const tid = setTimeout(() => {
+              addLog(ev.agent, ev.msg, ev.type);
+              if (ev.sid) setSensors(prev => prev.map(s => s.id === ev.sid ? { ...s, status: ev.ns } : s));
+            }, ev.t);
+            timersRef.current.push(tid);
+          });
+          const endTid = setTimeout(() => setRunning(false), 14000);
+          timersRef.current.push(endTid);
+        }
+      }
+
+      async function handleReset() {
+        timersRef.current.forEach(clearTimeout);
+        timersRef.current = [];
+        setSensors(INITIAL_SENSORS.map(s => ({ ...s, status: "online" })));
+        setLog([]);
+        setWorkOrders([]);
+        if (backendReady) {
+          try { await apiPost("api_reset"); addLog("System", "All sensors reset \u2713", "success"); } catch (e) {}
+        }
+      }
+
+      const online   = sensors.filter(s => s.status === "online").length;
+      const degraded = sensors.filter(s => s.status === "degraded").length;
+      const offline  = sensors.filter(s => s.status === "offline").length;
+
+      const s = {
+        root: {
+          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+          background: "#060d1a", color: "#e2e8f0", minHeight: "100vh",
+          display: "grid", gridTemplateRows: "56px 1fr",
+          gridTemplateColumns: "1fr 320px",
+          gridTemplateAreas: '"header header" "map sidebar"',
+          overflow: "hidden",
+        },
+        header: {
+          gridArea: "header", background: "#0b1628",
+          borderBottom: "1px solid #1e3a5f",
+          display: "flex", alignItems: "center", padding: "0 24px", gap: 16,
+        },
+        pill: (color) => ({
+          display: "flex", alignItems: "center", gap: 6,
+          background: color + "14", border: `1px solid ${color}44`,
+          borderRadius: 20, padding: "3px 12px", fontSize: 12, color,
+        }),
+        badge: {
+          fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+          background: backendStatus === "live" ? "#22c55e18" : "#f59e0b18",
+          border: `1px solid ${backendStatus === "live" ? "#22c55e44" : "#f59e0b44"}`,
+          color: backendStatus === "live" ? "#22c55e" : "#f59e0b",
+          borderRadius: 4, padding: "3px 8px",
+        },
+        sidebar: {
+          gridArea: "sidebar", background: "#0b1628",
+          borderLeft: "1px solid #1e3a5f",
+          display: "flex", flexDirection: "column", overflow: "hidden",
+        },
+        sh: {
+          fontSize: 10, letterSpacing: "0.12em", color: "#475569",
+          fontWeight: 700, textTransform: "uppercase",
+          padding: "14px 16px 6px", borderBottom: "1px solid #1e3a5f",
+        },
+        simBtn: {
+          margin: "12px 16px", padding: "10px 0",
+          background: running ? "#1e293b" : "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)",
+          border: "none", borderRadius: 6,
+          color: running ? "#475569" : "#fff",
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
+          cursor: running ? "not-allowed" : "pointer",
+          textTransform: "uppercase", fontFamily: "inherit",
+        },
+        resetBtn: {
+          margin: "0 16px 12px", padding: "6px 0",
+          background: "transparent", border: "1px solid #1e3a5f",
+          borderRadius: 6, color: "#475569", fontSize: 11,
+          cursor: "pointer", fontFamily: "inherit",
+        },
+        logBox: {
+          flex: 1, overflowY: "auto", padding: "4px 16px",
+          scrollbarWidth: "thin", scrollbarColor: "#1e3a5f transparent",
+        },
+        woBox: {
+          maxHeight: 220, overflowY: "auto", padding: "0 16px 12px",
+          scrollbarWidth: "thin", scrollbarColor: "#1e3a5f transparent",
+        },
+        woCard: {
+          background: "#0f1f38", border: "1px solid #ef444444",
+          borderRadius: 6, padding: 12, marginBottom: 8, fontSize: 11,
+        },
+        detail: { borderTop: "1px solid #1e3a5f", padding: 16, fontSize: 12 },
+      };
+
+      return (
+        <div style={s.root}>
+          <header style={s.header}>
+            <div>
+              <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>SentinelMesh</span>
+              <span style={{ fontSize: 10, color: "#475569", letterSpacing: "0.15em", marginLeft: 2 }}> / AI Dead Zone Hunter</span>
+            </div>
+            <div style={{ flex: 1 }} />
+            <span style={s.badge}>
+              {backendStatus === "live" ? "\u25CF LIVE JAC" : backendStatus === "demo" ? "\u25CC DEMO" : "\u27F3 CONNECTING"}
+            </span>
+            <div style={s.pill("#22c55e")}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block", animation: "pulse 2s infinite" }} />
+              {online} online
+            </div>
+            <div style={s.pill("#f59e0b")}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#f59e0b", display: "inline-block" }} />
+              {degraded} degraded
+            </div>
+            <div style={s.pill("#ef4444")}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#ef4444", display: "inline-block" }} />
+              {offline} offline
+            </div>
+          </header>
+
+          <main style={{ gridArea: "map", position: "relative", overflow: "hidden", background: "#060d1a" }}>
+            <svg width="100%" height="100%" viewBox="0 0 900 620" preserveAspectRatio="xMidYMid meet">
+              {ZONES.map(z => (
+                <g key={z.name}>
+                  <rect x={z.x} y={z.y} width={z.w} height={z.h} rx="6"
+                    fill={z.color + "08"} stroke={z.color + "44"} strokeWidth="1.5" strokeDasharray="6,3" />
+                  <text x={z.x + 10} y={z.y + 22} fontSize="11" fill={z.color} opacity="0.8"
+                    fontFamily="monospace" fontWeight="700" letterSpacing="0.08em">
+                    {z.name.toUpperCase()}
+                  </text>
+                </g>
+              ))}
+              {routers.map(r => <RouterNode key={r.id} router={r} />)}
+              {sensors.map(sen => {
+                const router = routers.find(r => r.id === sen.router);
+                if (!router) return null;
+                const sc = STATUS_COLOR[sen.status] || STATUS_COLOR.online;
+                return (
+                  <line key={sen.id + "-line"}
+                    x1={router.x} y1={router.y} x2={sen.x} y2={sen.y}
+                    stroke={sc.dot} strokeWidth="1"
+                    strokeOpacity={sen.status === "online" ? 0.25 : 0.6}
+                    strokeDasharray={sen.status === "offline" ? "4,4" : "none"} />
+                );
+              })}
+              {sensors.map(sen => (
+                <SensorNode key={sen.id} sensor={sen} selected={selected && selected.id === sen.id} onClick={setSelected} />
+              ))}
+            </svg>
+            <div style={{
+              position: "absolute", bottom: 16, left: 16,
+              background: "#0b162888", backdropFilter: "blur(8px)",
+              border: "1px solid #1e3a5f", borderRadius: 8,
+              padding: "10px 14px", display: "flex", gap: 16, fontSize: 11,
+            }}>
+              {Object.entries(TYPE_ICONS).map(([t, icon]) => (
+                <span key={t} style={{ color: "#94a3b8" }}>{icon} {t}</span>
+              ))}
+              <span style={{ color: "#334155" }}>|</span>
+              <span style={{ color: "#22c55e" }}>{"\u25CF"} online</span>
+              <span style={{ color: "#f59e0b" }}>{"\u25CF"} degraded</span>
+              <span style={{ color: "#ef4444" }}>{"\u25CF"} offline</span>
+            </div>
+          </main>
+
+          <aside style={s.sidebar}>
+            <div style={s.sh}>Simulation</div>
+            <button style={s.simBtn} onClick={runSimulation} disabled={running}>
+              {running ? "\u23F3  Agents Running\u2026" : "\u25B6  Simulate Dropout \u2014 SEN-042"}
+            </button>
+            <button style={s.resetBtn} onClick={handleReset}>{"\u21BA"} Reset All Sensors</button>
+
+            <div style={s.sh}>Agent Feed</div>
+            <div ref={logRef} style={s.logBox}>
+              {log.length === 0 && (
+                <div style={{ color: "#334155", fontSize: 11, padding: "12px 0", textAlign: "center" }}>
+                  No events yet. Run a simulation.
+                </div>
+              )}
+              {log.map((entry, i) => (
+                <LogEntry key={i} entry={entry} fresh={freshLog === entry.agent + entry.msg} />
+              ))}
+            </div>
+
+            {workOrders.length > 0 && (
+              <React.Fragment>
+                <div style={s.sh}>Work Orders ({workOrders.length})</div>
+                <div style={s.woBox}>
+                  {workOrders.map(wo => (
+                    <div key={wo.id} style={s.woCard}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ color: "#ef4444", fontWeight: 700 }}>{wo.id}</span>
+                        <span style={{ background: "#ef444422", color: "#ef4444", borderRadius: 3, padding: "1px 6px", fontSize: 10 }}>{wo.urgency}</span>
+                      </div>
+                      <div style={{ color: "#94a3b8", marginBottom: 4 }}>{"\u{1F4CD}"} {wo.location}</div>
+                      <div style={{ color: "#f59e0b", marginBottom: 6 }}>{"\u26A0"} {wo.cause}</div>
+                      <div style={{ color: "#64748b" }}>{"\u2192"} {wo.action}</div>
+                    </div>
+                  ))}
+                </div>
+              </React.Fragment>
+            )}
+
+            {selected && (
+              <div style={s.detail}>
+                <div style={{ color: "#475569", fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>SENSOR DETAIL</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px" }}>
+                  {[
+                    ["ID", selected.id],
+                    ["Type", `${TYPE_ICONS[selected.type]} ${selected.type}`],
+                    ["Zone", selected.zone],
+                    ["Router", selected.router],
+                    ["RSSI", `${selected.rssi} dBm`],
+                    ["Battery", `${selected.battery}%`],
+                    ["Status", selected.status.toUpperCase()],
+                  ].map(([k, v], i) => (
+                    <React.Fragment key={k}>
+                      <span style={{ color: "#475569", fontSize: 11 }}>{k}</span>
+                      <span style={{ color: (STATUS_COLOR[selected.status] || {}).dot || "#22c55e", fontSize: 11, fontWeight: 700 }}>{v}</span>
+                    </React.Fragment>
+                  ))}
+                </div>
+                <button onClick={() => setSelected(null)}
+                  style={{ marginTop: 10, background: "transparent", border: "1px solid #1e3a5f", borderRadius: 4, color: "#475569", fontSize: 10, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+                  CLOSE {"\u2715"}
+                </button>
+              </div>
+            )}
+          </aside>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(React.createElement(SentinelMesh));
+  </script>
+</body>
+</html>

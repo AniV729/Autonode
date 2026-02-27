@@ -1,0 +1,13 @@
+[project]
+name = "SentinelMesh"
+version = "0.1.0"
+description = "AI Dead Zone Hunter — Industrial IoT Connectivity Agent"
+entry-point = "server.jac"
+
+[serve]
+port = 8000
+
+[dependencies]
+
+[dev-dependencies]
+watchdog = ">=3.0.0"
