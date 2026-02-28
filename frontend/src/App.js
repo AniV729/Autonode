@@ -987,10 +987,6 @@ export default function SentinelMesh() {
           {Object.entries(TYPE_ICONS).map(([t, icon]) => (
             <span key={t} style={{ color: "#94a3b8" }}>{icon} {t}</span>
           ))}
-          <span style={{ color: "#334155" }}>|</span>
-          <span style={{ color: "#22c55e" }}>● online</span>
-          <span style={{ color: "#f59e0b" }}>● degraded</span>
-          <span style={{ color: "#ef4444" }}>● offline</span>
         </div>
       </main>
 
@@ -1064,6 +1060,20 @@ export default function SentinelMesh() {
             <div style={st.sectionScroll}>
               <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4 }}>
                 Reset controls and background monitoring.
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 11, color: autoMonitor ? "#22c55e" : "#ef4444" }}>
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: autoMonitor ? "#22c55e" : "#ef4444",
+                    boxShadow: autoMonitor ? "0 0 10px #22c55e99" : "0 0 10px #ef444499",
+                    display: "inline-block",
+                    animation: "pulse 1.5s infinite",
+                  }}
+                />
+                {autoMonitor ? "Auto Monitor Running" : "Auto Monitor Paused"}
               </div>
               <button
                 style={st.resetBtn}
