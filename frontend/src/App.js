@@ -392,7 +392,7 @@ export default function SentinelMesh() {
         ::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px;}
       `}</style>
 
-      <header style={s.header}>
+      <header style={st.header}>
         <div>
           <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>Autonode</span>
           <span style={{ fontSize: 10, color: "#ffffff", letterSpacing: "0.15em", marginLeft: 2 }}> / AI Dead Zone Hunter</span>
@@ -427,7 +427,6 @@ export default function SentinelMesh() {
               </text>
             </g>
           ))}
-          {routers.map(r => <RouterNode key={r.id} router={r} />)}
           {sensors.map(sen => {
             const router = routers.find(r => r.id === sen.router);
             if (!router) return null;
@@ -440,6 +439,7 @@ export default function SentinelMesh() {
                 strokeDasharray={sen.status === "offline" ? "4,4" : "none"} />
             );
           })}
+          {routers.map(r => <RouterNode key={r.id} router={r} />)}
           {sensors.map(sen => (
             <SensorNode key={sen.id} sensor={sen} selected={selected?.id === sen.id} onClick={setSelected} />
           ))}
