@@ -1,10 +1,9 @@
 {
-  "modelContextProtocol": {
-    "jaseci": {
-      "command": "python",
-      "args": ["-m", "jaseci_mcp.server"],
-      "env": {
-        "JAC_PROJECT_ROOT": "${workspaceFolder}"
+  "mcp": {
+    "servers": {
+      "jac": {
+        "command": "jac",
+        "args": ["mcp"]
       }
     }
   }

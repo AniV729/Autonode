@@ -1,0 +1,8 @@
+body { font-family: Arial, Helvetica, sans-serif; margin:0; }
+#app { display:flex; height:100vh; }
+#sidebar { width:320px; padding:12px; background:#0f1724; color:#cbd5e1; overflow:auto }
+#main { flex:1; padding:12px; background:#071029; color:#e2e8f0; }
+.zone { opacity:0.12; }
+.sensor { cursor:pointer; }
+.log-entry { font-family:monospace; font-size:12px; border-bottom:1px solid #ffffff08; padding:6px 0 }
+button { margin-right:8px }
