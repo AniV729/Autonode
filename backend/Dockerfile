@@ -8,4 +8,4 @@ COPY . /app
 
 EXPOSE 8000
 
-CMD ["jac", "start", "server.jac", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["jac", "start", "fullstack.jac", "--host", "0.0.0.0", "--port", "8000"]

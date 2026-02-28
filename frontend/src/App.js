@@ -896,7 +896,7 @@ export default function SentinelMesh() {
       <header style={st.header}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 180 }}>
           <img
-            src={`${process.env.PUBLIC_URL}/logo.png`}
+            src="/logo.png"
             alt="Autonode logo"
             style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }}
           />

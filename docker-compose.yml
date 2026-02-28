@@ -28,6 +28,7 @@ services:
       context: ./frontend
     container_name: autonode_frontend
     restart: unless-stopped
+    profiles: ["legacy-ui"]
     depends_on:
       - backend
     ports:

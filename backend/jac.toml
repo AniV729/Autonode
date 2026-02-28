@@ -3,7 +3,7 @@
 name = "Autonode"
 version = "0.1.0"
 description = "A Jac project"
-entry-point = "server.jac"
+entry-point = "fullstack.jac"
 
 [dependencies]
 
