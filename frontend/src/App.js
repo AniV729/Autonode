@@ -153,26 +153,29 @@ function formatMoney(amount) {
 
 function AgentBadge({ name }) {
   const colors = {
-    HeartbeatMonitor: "#0ea5e9",
-    DeadZoneMapper: "#8b5cf6",
-    RootCauseAnalyzer: "#f59e0b",
-    ReroutingAgent: "#10b981",
+    PulseAgent: "#0ea5e9",
+    DeadzoneAgent: "#8b5cf6",
+    CauseAgent: "#f59e0b",
+    "Rerout Agent": "#10b981",
     DispatchAgent: "#ef4444",
     System: "#64748b",
   };
   const c = colors[name] || "#94a3b8";
   return (
     <span style={{
-      fontSize: 10,
+      fontSize: 9,
       fontFamily: "'JetBrains Mono', monospace",
       fontWeight: 700,
       color: c,
       background: `${c}18`,
       border: `1px solid ${c}44`,
       borderRadius: 3,
-      padding: "1px 6px",
+      padding: "1px 5px",
       letterSpacing: "0.04em",
-      whiteSpace: "nowrap",
+      whiteSpace: "normal",
+      wordBreak: "break-word",
+      maxWidth: "100%",
+      lineHeight: 1.25,
     }}>
       {name}
     </span>
@@ -181,35 +184,48 @@ function AgentBadge({ name }) {
 
 function LogEntry({ entry, fresh }) {
   const typeStyle = { info: "#94a3b8", warn: "#f59e0b", error: "#ef4444", success: "#22c55e" };
+  const hasReason = !!entry.reason;
 
   return (
     <div style={{
-      display: "flex",
+      display: "grid",
+      gridTemplateColumns: "92px minmax(0, 1fr)",
       gap: 10,
-      alignItems: "flex-start",
-      padding: "7px 0",
+      alignItems: "start",
+      padding: "6px 0",
       borderBottom: "1px solid #ffffff08",
       animation: fresh ? "fadeSlide 0.3s ease" : "none",
     }}>
-      <span style={{
-        fontSize: 10,
-        color: "#475569",
-        fontFamily: "monospace",
-        whiteSpace: "nowrap",
-        marginTop: 2,
-      }}>
-        {new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-      </span>
+      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{
+          fontSize: 9,
+          color: "#475569",
+          fontFamily: "monospace",
+          whiteSpace: "nowrap",
+          lineHeight: 1.2,
+        }}>
+          {new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+        </span>
+        <AgentBadge name={entry.agent} />
+        {entry.rootCause && (
+          <span style={{ fontSize: 9, color: "#7c8ea5", lineHeight: 1.25, wordBreak: "break-word" }}>
+            rc: {entry.rootCause}
+          </span>
+        )}
+        {entry.confidence && (
+          <span style={{ fontSize: 9, color: "#7c8ea5", lineHeight: 1.25 }}>
+            cf: {entry.confidence}%
+          </span>
+        )}
+      </div>
+
       <div style={{ minWidth: 0 }}>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <AgentBadge name={entry.agent} />
-          <span style={{ fontSize: 12, color: typeStyle[entry.type], lineHeight: 1.45 }}>{entry.msg}</span>
+        <div style={{ fontSize: 11, color: typeStyle[entry.type], lineHeight: 1.35, overflowWrap: "anywhere" }}>
+          {entry.msg}
         </div>
-        {(entry.rootCause || entry.confidence || entry.reason) && (
-          <div style={{ marginTop: 4, fontSize: 10, color: "#64748b", lineHeight: 1.4 }}>
-            {entry.rootCause && <span>root cause: {entry.rootCause} </span>}
-            {entry.confidence && <span>confidence: {entry.confidence}% </span>}
-            {entry.reason && <span>why: {entry.reason}</span>}
+        {hasReason && (
+          <div style={{ marginTop: 3, fontSize: 10, color: "#64748b", lineHeight: 1.35, overflowWrap: "anywhere" }}>
+            <span style={{ color: "#7c8ea5" }}>why: </span>{entry.reason}
           </div>
         )}
       </div>
@@ -373,7 +389,7 @@ export default function SentinelMesh() {
       profile.confidenceRange[1] * 100,
     ]));
 
-    addLog("HeartbeatMonitor", `${sensor.id} anomaly observed (${profile.label})`, "warn");
+    addLog("PulseAgent", `${sensor.id} anomaly observed (${profile.label})`, "warn");
     addLog(
       "System",
       `${mode === "autonomous" ? "Autonomous" : "Traditional"} mode handling started for ${sensor.id}`,
@@ -383,7 +399,7 @@ export default function SentinelMesh() {
     schedule(detectionMs, () => {
       updateSensorOffline(sensor.id, failureKey);
       addLog(
-        "HeartbeatMonitor",
+        "PulseAgent",
         `${sensor.id} marked OFFLINE in ${sensor.zone}`,
         "error",
         { reason: "heartbeat threshold exceeded" }
@@ -424,13 +440,13 @@ export default function SentinelMesh() {
     const response = preferredResponse === "reroute" && !altRouter ? "dispatch" : preferredResponse;
 
     schedule(diagnosisMs - 500, () => {
-      addLog("DeadZoneMapper", `Impact radius mapped for ${sensor.id} in ${sensor.zone}`, "info");
+      addLog("DeadzoneAgent", `Impact radius mapped for ${sensor.id} in ${sensor.zone}`, "info");
     });
 
     schedule(diagnosisMs, () => {
       const why = response === "reroute" ? profile.rerouteReason : profile.dispatchReason;
       addLog(
-        "RootCauseAnalyzer",
+        "CauseAgent",
         `Root cause identified: ${profile.rootCause}`,
         "success",
         {
@@ -444,7 +460,7 @@ export default function SentinelMesh() {
     if (response === "reroute" && altRouter) {
       schedule(diagnosisMs + 700, () => {
         addLog(
-          "ReroutingAgent",
+          "Rerout Agent",
           `Decision: reroute ${sensor.id} from ${sensor.router} to ${altRouter.id}`,
           "info",
           { reason: profile.rerouteReason }
@@ -467,7 +483,7 @@ export default function SentinelMesh() {
         )));
 
         addLog(
-          "ReroutingAgent",
+          "Rerout Agent",
           `${sensor.id} recovered through ${altRouter.id}. Self-heal complete.`,
           "success",
           { reason: "traffic shifted automatically before prolonged downtime" }

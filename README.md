@@ -1,5 +1,5 @@
 
-# Autonode — AI Dead Zone Hunter
+# Autonode — AI IoT Dead Zone Solver
 
 > Industrial IoT mesh network monitoring with autonomous AI agents built on Jac / Jaseci
 
@@ -15,10 +15,10 @@ When a sensor goes dark, a pipeline of 5 specialized agents fires:
 
 | Agent | Role |
 |---|---|
-| **HeartbeatMonitor** | Continuously scans all sensors for missed pings |
-| **DeadZoneMapper** | Maps the geographic spread of signal loss |
-| **RootCauseAnalyzer** | Diagnoses the failure (battery, obstruction, overload) |
-| **ReroutingAgent** | Attempts automatic mesh rerouting for self-healing |
+| **PulseAgent** | Continuously scans all sensors for missed pings |
+| **DeadzoneAgent** | Maps the geographic spread of signal loss |
+| **CauseAgent** | Diagnoses the failure (battery, obstruction, overload) |
+| **Rerout Agent** | Attempts automatic mesh rerouting for self-healing |
 | **DispatchAgent** | Generates a work order if hardware intervention is needed |
 
 ---
@@ -51,7 +51,7 @@ The backend is built entirely in **Jac** — a graph-native AI programming langu
 ## Tech Stack
 
 - **Backend**: [Jac 0.11.2](https://docs.jaseci.org) / Jaseci stack
-- **Frontend**: React 18, SVG-based live map
+- **Frontend**: React 19, SVG-based live map
 - **API**: Auto-generated REST endpoints via `jac start`
 - **Sensor Graph**: 24 sensors, 4 routers, 4 zones
 
@@ -62,27 +62,28 @@ The backend is built entirely in **Jac** — a graph-native AI programming langu
 ### Prerequisites
 - Python 3.11+
 - Node.js 18+
-- `jaclang` and `jac-cloud` installed
-
-```bash
-pip install jaclang jac-cloud
-```
+- local Python virtual environment (`venv`)
 
 ### Backend
 
 ```bash
 cd backend
-python -m venv .venv
+python3 -m venv .venv
 .venv\Scripts\activate        # Windows
 source .venv/bin/activate     # Mac/Linux
 
-pip install jaclang jac-cloud
-jac create .
+python -m pip install -U pip
+python -m pip install -r requirements.txt
 jac start server.jac
 ```
 
 Server runs at `http://localhost:8000`  
-Swagger docs at `http://localhost:8000/docs`
+
+If `jac start` is unavailable on your local CLI version, use:
+
+```bash
+jac serve server.jac -ho 0.0.0.0 -p 8000
+```
 
 ### Frontend
 
@@ -98,7 +99,7 @@ App runs at `http://localhost:3000`
 
 ## API Endpoints
 
-All endpoints are `POST` with a JSON body.
+Most endpoints are `POST` with a JSON body.
 
 | Endpoint | Description |
 |---|---|
@@ -109,6 +110,13 @@ All endpoints are `POST` with a JSON body.
 | `/walker/api_run_pipeline` | Run full 5-agent pipeline |
 | `/walker/api_diagnose` | Diagnose a specific sensor `{"sensor_id": "SEN-042"}` |
 | `/walker/api_reset` | Reset all sensors to online |
+
+Useful discovery endpoints:
+
+| Endpoint | Description |
+|---|---|
+| `GET /walkers` | List available walkers |
+| `GET /functions` | List available functions |
 
 ---
 
@@ -135,9 +143,10 @@ Autonode/
 │   ├── mock_data.jac     # Graph seeder (legacy)
 │   ├── run.jac           # CLI demo runner
 │   └── jac.toml          # Project config
-├── src/
-│   ├── Autonode.jsx  # Main React dashboard
-│   └── App.js
+├── frontend/
+│   ├── src/
+│   │   └── App.js        # Main React dashboard
+│   └── package.json
 └── README.md
 ```
 
@@ -159,3 +168,51 @@ This means the entire backend — data model, business logic, and API — is exp
 ## Team
 
 Built for the Jaseci Hackathon 2026.
+---
+
+## Progress Update (Completed So Far)
+
+- Backend graph model is implemented for 1 warehouse, 4 zones, 4 routers, and 24 sensors.
+- Core autonomous agent pipeline is implemented:
+  - PulseAgent
+  - DeadzoneAgent
+  - CauseAgent
+  - Rerout Agent
+  - DispatchAgent
+- Backend public API walkers are in place (`api_setup`, `api_state`, `api_ingest`, `api_heartbeat`, `api_simulate_dropout`, `api_run_pipeline`, `api_diagnose`, `api_dispatch`, `api_business_metrics`, `api_notification_health`, `api_reset`).
+- Automation runtime is integrated for event history, business metrics, and work-order delivery hooks.
+- React dashboard is implemented with live map rendering, controls, resets, data/metrics, agent log feed, and work-order panel.
+- End-to-end demo flow is working (simulate dropout -> run pipeline -> visualize result -> reset).
+
+### Current Status
+
+- Complete: Jac backend + REST API + CRA frontend integration.
+- Complete: Autonomous vs traditional mode simulation behavior in UI.
+- In progress / next: Jac-native frontend migration (`frontend_jac`) as outlined in `JAC_FRONTEND_MIGRATION_OUTLINE.md`.
+
+## Run Commands (Frontend + Backend)
+
+Run these from the project root using two terminals.
+
+### Terminal 1: Backend (Jac API)
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -r requirements.txt
+jac start server.jac
+```
+
+Backend URL: `http://localhost:8000`  
+
+### Terminal 2: Frontend (React)
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+Frontend URL: `http://localhost:3000`
