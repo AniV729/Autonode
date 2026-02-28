@@ -807,20 +807,30 @@ export default function SentinelMesh() {
       letterSpacing: "0.06em",
       cursor: running ? "not-allowed" : "pointer",
     }),
-    actionBtn: (color = "#0ea5e9") => ({
+    actionBtn: (color = "#0ea5e9", opts = {}) => ({
+      ...(() => {
+        const active = !!opts.active;
+        const locked = !!opts.locked;
+        return {
+          background: active
+            ? "#1e293b"
+            : `linear-gradient(135deg, ${color} 0%, ${color}99 100%)`,
+          color: active ? "#cbd5e1" : "#fff",
+          opacity: locked && !active ? 0.58 : 1,
+          cursor: locked ? "not-allowed" : "pointer",
+          border: active ? "1px solid #334155" : "none",
+        };
+      })(),
       margin: "8px 0 0",
       padding: "10px 0",
-      background: running ? "#1e293b" : `linear-gradient(135deg, ${color} 0%, ${color}99 100%)`,
-      border: "none",
       borderRadius: 6,
-      color: running ? "#475569" : "#fff",
       fontSize: 11,
       fontWeight: 700,
       letterSpacing: "0.08em",
-      cursor: running ? "not-allowed" : "pointer",
       textTransform: "uppercase",
       fontFamily: "inherit",
       width: "100%",
+      transition: "opacity 0.15s ease, filter 0.15s ease, background 0.15s ease",
     }),
     resetBtn: {
       margin: "8px 0 0",
@@ -1030,7 +1040,7 @@ export default function SentinelMesh() {
               </div>
 
               <button
-                style={st.actionBtn("#0ea5e9")}
+                style={st.actionBtn("#0ea5e9", { active: running && activeAction === "comparison", locked: running })}
                 onClick={() => runIncident(COMPARISON_SCENARIO.sensorId, COMPARISON_SCENARIO.failureKey, "comparison", "comparison")}
                 disabled={running}
               >
@@ -1046,7 +1056,10 @@ export default function SentinelMesh() {
               {Object.entries(FAILURE_PROFILES).map(([key, profile]) => (
                 <button
                   key={key}
-                  style={st.actionBtn(key === "BATTERY_DEAD" || key === "HARDWARE_FAULT" ? "#ef4444" : "#10b981")}
+                  style={st.actionBtn(
+                    key === "BATTERY_DEAD" || key === "HARDWARE_FAULT" ? "#ef4444" : "#10b981",
+                    { active: running && activeAction === `failure-${key}`, locked: running }
+                  )}
                   onClick={() => runIncident(DEMO_SENSORS_BY_FAILURE[key], key, "manual", `failure-${key}`)}
                   disabled={running}
                 >
