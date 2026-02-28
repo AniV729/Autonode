@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const API = "http://localhost:8000";
 
@@ -50,6 +50,84 @@ const STATUS_COLOR = {
   offline:  { dot: "#ef4444", glow: "0 0 12px #ef444499" },
 };
 
+const FAILURE_PROFILES = {
+  ROUTER_OVERLOAD: {
+    label: "Router overload",
+    rootCause: "ROUTER_OVERLOAD",
+    detectionRange: [800, 1500],
+    diagnoseRange: [1200, 2000],
+    actionRange: [1200, 1800],
+    confidenceRange: [0.83, 0.94],
+    response: "reroute",
+    rerouteReason: "router load exceeded 70%, so traffic moved to a lower-load path",
+    dispatchReason: "",
+    perIncidentSavings: 5200,
+    manualResolutionRange: [70 * 60 * 1000, 115 * 60 * 1000],
+  },
+  BATTERY_DEAD: {
+    label: "Dead battery",
+    rootCause: "BATTERY_DEAD",
+    detectionRange: [700, 1400],
+    diagnoseRange: [1000, 1700],
+    actionRange: [1300, 1900],
+    confidenceRange: [0.9, 0.98],
+    response: "dispatch",
+    rerouteReason: "",
+    dispatchReason: "battery dropped below 5% and device heartbeat stopped",
+    perIncidentSavings: 2100,
+    manualResolutionRange: [95 * 60 * 1000, 160 * 60 * 1000],
+  },
+  HARDWARE_FAULT: {
+    label: "Hardware fault",
+    rootCause: "HARDWARE_FAULT",
+    detectionRange: [900, 1700],
+    diagnoseRange: [1200, 2200],
+    actionRange: [1400, 2200],
+    confidenceRange: [0.8, 0.92],
+    response: "dispatch",
+    rerouteReason: "",
+    dispatchReason: "telemetry checksum + vibration profile indicate local hardware damage",
+    perIncidentSavings: 2500,
+    manualResolutionRange: [105 * 60 * 1000, 180 * 60 * 1000],
+  },
+  PHYSICAL_OBSTRUCTION: {
+    label: "Physical obstruction",
+    rootCause: "PHYSICAL_OBSTRUCTION",
+    detectionRange: [900, 1600],
+    diagnoseRange: [1300, 2100],
+    actionRange: [1200, 1900],
+    confidenceRange: [0.75, 0.88],
+    response: "reroute",
+    rerouteReason: "path-loss spike indicates blocked line-of-sight; alternate route restored coverage",
+    dispatchReason: "",
+    perIncidentSavings: 4600,
+    manualResolutionRange: [80 * 60 * 1000, 140 * 60 * 1000],
+  },
+};
+
+const COMPARISON_SCENARIO = {
+  sensorId: "SEN-007",
+  failureKey: "ROUTER_OVERLOAD",
+};
+
+const DEMO_SENSORS_BY_FAILURE = {
+  ROUTER_OVERLOAD: "SEN-007",
+  BATTERY_DEAD: "SEN-015",
+  HARDWARE_FAULT: "SEN-020",
+  PHYSICAL_OBSTRUCTION: "SEN-042",
+};
+
+const SEED_INCIDENTS = [
+  { mode: "autonomous", autoHealed: true,  dispatched: false, detectionMs: 1200, resolutionMs: 3900, savedDollars: 5100 },
+  { mode: "autonomous", autoHealed: true,  dispatched: false, detectionMs: 1100, resolutionMs: 3600, savedDollars: 4700 },
+  { mode: "autonomous", autoHealed: false, dispatched: true,  detectionMs: 1300, resolutionMs: 4300, savedDollars: 2200 },
+  { mode: "autonomous", autoHealed: true,  dispatched: false, detectionMs: 900,  resolutionMs: 3300, savedDollars: 5000 },
+  { mode: "autonomous", autoHealed: false, dispatched: true,  detectionMs: 1250, resolutionMs: 4500, savedDollars: 2400 },
+  { mode: "traditional", autoHealed: false, dispatched: true, detectionMs: 3700, resolutionMs: 88 * 60 * 1000, savedDollars: 0 },
+  { mode: "traditional", autoHealed: false, dispatched: true, detectionMs: 4100, resolutionMs: 102 * 60 * 1000, savedDollars: 0 },
+  { mode: "traditional", autoHealed: false, dispatched: true, detectionMs: 3400, resolutionMs: 95 * 60 * 1000, savedDollars: 0 },
+];
+
 async function apiPost(endpoint, body = {}) {
   const res = await fetch(`${API}/walker/${endpoint}`, {
     method: "POST",
@@ -61,38 +139,89 @@ async function apiPost(endpoint, body = {}) {
   return data;
 }
 
+function pickInRange([min, max]) {
+  return Math.round(min + Math.random() * (max - min));
+}
+
+function avg(values) {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+function formatDuration(ms) {
+  if (!ms) return "0.0s";
+  if (ms < 60 * 1000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${(ms / (60 * 1000)).toFixed(1)}m`;
+}
+
+function formatMoney(amount) {
+  if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
+  if (amount >= 1000) return `$${Math.round(amount / 1000)}k`;
+  return `$${Math.round(amount)}`;
+}
+
 function AgentBadge({ name }) {
   const colors = {
-    HeartbeatMonitor:  "#0ea5e9",
-    DeadZoneMapper:    "#8b5cf6",
+    HeartbeatMonitor: "#0ea5e9",
+    DeadZoneMapper: "#8b5cf6",
     RootCauseAnalyzer: "#f59e0b",
-    ReroutingAgent:    "#10b981",
-    DispatchAgent:     "#ef4444",
-    System:            "#64748b",
+    ReroutingAgent: "#10b981",
+    DispatchAgent: "#ef4444",
+    System: "#64748b",
   };
   const c = colors[name] || "#94a3b8";
   return (
     <span style={{
-      fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-      color: c, background: c + "18", border: `1px solid ${c}44`,
-      borderRadius: 3, padding: "1px 6px", letterSpacing: "0.04em", whiteSpace: "nowrap",
-    }}>{name}</span>
+      fontSize: 10,
+      fontFamily: "'JetBrains Mono', monospace",
+      fontWeight: 700,
+      color: c,
+      background: `${c}18`,
+      border: `1px solid ${c}44`,
+      borderRadius: 3,
+      padding: "1px 6px",
+      letterSpacing: "0.04em",
+      whiteSpace: "nowrap",
+    }}>
+      {name}
+    </span>
   );
 }
 
 function LogEntry({ entry, fresh }) {
   const typeStyle = { info: "#94a3b8", warn: "#f59e0b", error: "#ef4444", success: "#22c55e" };
+
   return (
     <div style={{
-      display: "flex", gap: 10, alignItems: "flex-start",
-      padding: "7px 0", borderBottom: "1px solid #ffffff08",
+      display: "flex",
+      gap: 10,
+      alignItems: "flex-start",
+      padding: "7px 0",
+      borderBottom: "1px solid #ffffff08",
       animation: fresh ? "fadeSlide 0.3s ease" : "none",
     }}>
-      <span style={{ fontSize: 10, color: "#475569", fontFamily: "monospace", whiteSpace: "nowrap", marginTop: 2 }}>
+      <span style={{
+        fontSize: 10,
+        color: "#475569",
+        fontFamily: "monospace",
+        whiteSpace: "nowrap",
+        marginTop: 2,
+      }}>
         {new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
       </span>
-      <AgentBadge name={entry.agent} />
-      <span style={{ fontSize: 12, color: typeStyle[entry.type], lineHeight: 1.5 }}>{entry.msg}</span>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <AgentBadge name={entry.agent} />
+          <span style={{ fontSize: 12, color: typeStyle[entry.type], lineHeight: 1.45 }}>{entry.msg}</span>
+        </div>
+        {(entry.rootCause || entry.confidence || entry.reason) && (
+          <div style={{ marginTop: 4, fontSize: 10, color: "#64748b", lineHeight: 1.4 }}>
+            {entry.rootCause && <span>root cause: {entry.rootCause} </span>}
+            {entry.confidence && <span>confidence: {entry.confidence}% </span>}
+            {entry.reason && <span>why: {entry.reason}</span>}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -100,7 +229,7 @@ function LogEntry({ entry, fresh }) {
 function SensorNode({ sensor, selected, onClick }) {
   const sc = STATUS_COLOR[sensor.status] || STATUS_COLOR.online;
   const r = selected ? 14 : 10;
-  const isDemo = sensor.id === "SEN-042" || sensor.id === "SEN-007";
+
   return (
     <g transform={`translate(${sensor.x}, ${sensor.y})`} style={{ cursor: "pointer" }} onClick={() => onClick(sensor)}>
       {sensor.status !== "online" && (
@@ -109,11 +238,13 @@ function SensorNode({ sensor, selected, onClick }) {
           <animate attributeName="opacity" values="0.12;0.04;0.12" dur="2s" repeatCount="indefinite" />
         </circle>
       )}
-      {isDemo && sensor.status === "online" && (
-        <circle r="16" fill="none" stroke="#ffffff" strokeWidth="1" strokeDasharray="3,3" opacity="0.2" />
-      )}
-      <circle r={r} fill={sc.dot} stroke={selected ? "#fff" : "#060d1a"} strokeWidth={selected ? 2.5 : 1.5}
-        style={{ filter: `drop-shadow(${sc.glow})`, transition: "r 0.2s" }} />
+      <circle
+        r={r}
+        fill={sc.dot}
+        stroke={selected ? "#fff" : "#060d1a"}
+        strokeWidth={selected ? 2.5 : 1.5}
+        style={{ filter: `drop-shadow(${sc.glow})`, transition: "r 0.2s" }}
+      />
       <text textAnchor="middle" dominantBaseline="central" fontSize="11" style={{ userSelect: "none", pointerEvents: "none" }}>
         {TYPE_ICONS[sensor.type]}
       </text>
@@ -125,8 +256,17 @@ function RouterNode({ router }) {
   const loadColor = router.load > 70 ? "#ef4444" : router.load > 50 ? "#f59e0b" : "#22c55e";
   return (
     <g transform={`translate(${router.x}, ${router.y})`}>
-      <rect x="-22" y="-14" width="44" height="28" rx="4" fill="#1e293b" stroke={loadColor} strokeWidth="1.5"
-        style={{ filter: `drop-shadow(0 0 4px ${loadColor}66)` }} />
+      <rect
+        x="-22"
+        y="-14"
+        width="44"
+        height="28"
+        rx="4"
+        fill="#1e293b"
+        stroke={loadColor}
+        strokeWidth="1.5"
+        style={{ filter: `drop-shadow(0 0 4px ${loadColor}66)` }}
+      />
       <text textAnchor="middle" dominantBaseline="central" fontSize="14" fill={loadColor} fontFamily="monospace" fontWeight="700">📡</text>
       <text textAnchor="middle" y="22" fontSize="9" fill={loadColor} fontFamily="monospace" fontWeight="700">{router.id}</text>
     </g>
@@ -134,251 +274,536 @@ function RouterNode({ router }) {
 }
 
 export default function SentinelMesh() {
-  const [sensors, setSensors]           = useState(INITIAL_SENSORS);
-  const [routers, setRouters]           = useState(ROUTERS_FALLBACK);
-  const [selected, setSelected]         = useState(null);
-  const [log, setLog]                   = useState([]);
-  const [freshLog, setFreshLog]         = useState(null);
-  const [workOrders, setWorkOrders]     = useState([]);
-  const [running, setRunning]           = useState(false);
+  const [sensors, setSensors] = useState(INITIAL_SENSORS);
+  const [routers, setRouters] = useState(ROUTERS_FALLBACK);
+  const [selected, setSelected] = useState(null);
+  const [log, setLog] = useState([]);
+  const [freshLog, setFreshLog] = useState(null);
+  const [workOrders, setWorkOrders] = useState([]);
+  const [running, setRunning] = useState(false);
+  const [mode, setMode] = useState("autonomous");
+  const [autoMonitor, setAutoMonitor] = useState(true);
   const [backendStatus, setBackendStatus] = useState("connecting");
   const [backendReady, setBackendReady] = useState(false);
+  const [incidentHistory, setIncidentHistory] = useState(SEED_INCIDENTS);
+  const [isNarrow, setIsNarrow] = useState(() => window.innerWidth < 1100);
+  const [activeFailure, setActiveFailure] = useState(null);
+
   const logRef = useRef(null);
   const timersRef = useRef([]);
+  const runIncidentRef = useRef(null);
+  const baselineSensorsRef = useRef(INITIAL_SENSORS);
+  const baselineRoutersRef = useRef(ROUTERS_FALLBACK);
+
+  useEffect(() => {
+    const onResize = () => setIsNarrow(window.innerWidth < 1100);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [log]);
 
-  function addLog(agent, msg, type = "info") {
-    setLog(prev => [...prev, { agent, msg, type, ts: Date.now() }]);
-    setFreshLog(agent + msg);
+  useEffect(() => {
+    if (!selected) return;
+    const live = sensors.find((s) => s.id === selected.id);
+    if (live) setSelected(live);
+  }, [sensors, selected]);
+
+  function addLog(agent, msg, type = "info", detail = {}) {
+    const entry = { agent, msg, type, ts: Date.now(), ...detail };
+    setLog((prev) => [...prev.slice(-159), entry]);
+    setFreshLog(`${entry.ts}-${agent}-${msg}`);
+  }
+
+  function clearTimers() {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+  }
+
+  function schedule(delay, fn) {
+    const tid = setTimeout(fn, delay);
+    timersRef.current.push(tid);
+  }
+
+  function recordIncident(incident) {
+    setIncidentHistory((prev) => [...prev, incident].slice(-220));
+  }
+
+  function updateSensorOffline(sensorId, failureKey) {
+    setSensors((prev) => prev.map((s) => {
+      if (s.id !== sensorId) return s;
+
+      if (failureKey === "BATTERY_DEAD") {
+        return { ...s, status: "offline", battery: Math.max(0, s.battery - 85), rssi: -97 };
+      }
+      if (failureKey === "HARDWARE_FAULT") {
+        return { ...s, status: "offline", rssi: -93 };
+      }
+      if (failureKey === "PHYSICAL_OBSTRUCTION") {
+        return { ...s, status: "offline", rssi: -86 };
+      }
+      return { ...s, status: "offline", rssi: -83 };
+    }));
+  }
+
+  function pickAlternateRouter(sensor) {
+    const options = routers
+      .filter((r) => r.id !== sensor.router)
+      .sort((a, b) => a.load - b.load);
+    return options[0] || null;
+  }
+
+  function runIncident(sensorId, failureKey, source = "manual") {
+    if (running) return;
+
+    const sensor = sensors.find((s) => s.id === sensorId);
+    const profile = FAILURE_PROFILES[failureKey];
+    if (!sensor || !profile) return;
+
+    clearTimers();
+    setRunning(true);
+    setActiveFailure({ sensorId, failureKey, source });
+
+    const detectionMs = pickInRange(profile.detectionRange);
+    const diagnosisMs = detectionMs + pickInRange(profile.diagnoseRange);
+    const actionMs = diagnosisMs + pickInRange(profile.actionRange);
+    const confidence = Math.round(pickInRange([
+      profile.confidenceRange[0] * 100,
+      profile.confidenceRange[1] * 100,
+    ]));
+
+    addLog("HeartbeatMonitor", `${sensor.id} anomaly observed (${profile.label})`, "warn");
+    addLog(
+      "System",
+      `${mode === "autonomous" ? "Autonomous" : "Traditional"} mode handling started for ${sensor.id}`,
+      "info"
+    );
+
+    schedule(detectionMs, () => {
+      updateSensorOffline(sensor.id, failureKey);
+      addLog(
+        "HeartbeatMonitor",
+        `${sensor.id} marked OFFLINE in ${sensor.zone}`,
+        "error",
+        { reason: "heartbeat threshold exceeded" }
+      );
+    });
+
+    if (mode === "traditional") {
+      schedule(detectionMs + 700, () => {
+        addLog(
+          "System",
+          "Traditional Mode: sensor stays red; no reroute or dispatch automation.",
+          "warn",
+          {
+            rootCause: profile.rootCause,
+            confidence,
+            reason: "automation disabled in Traditional Mode",
+          }
+        );
+
+        recordIncident({
+          mode,
+          failureKey,
+          autoHealed: false,
+          dispatched: true,
+          detectionMs,
+          resolutionMs: pickInRange(profile.manualResolutionRange),
+          savedDollars: 0,
+        });
+
+        setRunning(false);
+      });
+      return;
+    }
+
+    const preferredResponse = profile.response;
+    const altRouter = preferredResponse === "reroute" ? pickAlternateRouter(sensor) : null;
+    const response = preferredResponse === "reroute" && !altRouter ? "dispatch" : preferredResponse;
+
+    schedule(diagnosisMs - 500, () => {
+      addLog("DeadZoneMapper", `Impact radius mapped for ${sensor.id} in ${sensor.zone}`, "info");
+    });
+
+    schedule(diagnosisMs, () => {
+      const why = response === "reroute" ? profile.rerouteReason : profile.dispatchReason;
+      addLog(
+        "RootCauseAnalyzer",
+        `Root cause identified: ${profile.rootCause}`,
+        "success",
+        {
+          rootCause: profile.rootCause,
+          confidence,
+          reason: why,
+        }
+      );
+    });
+
+    if (response === "reroute" && altRouter) {
+      schedule(diagnosisMs + 700, () => {
+        addLog(
+          "ReroutingAgent",
+          `Decision: reroute ${sensor.id} from ${sensor.router} to ${altRouter.id}`,
+          "info",
+          { reason: profile.rerouteReason }
+        );
+
+        setSensors((prev) => prev.map((s) => (
+          s.id === sensor.id ? { ...s, status: "degraded", router: altRouter.id, rssi: Math.min(-66, s.rssi + 10) } : s
+        )));
+
+        setRouters((prev) => prev.map((r) => {
+          if (r.id === sensor.router) return { ...r, load: Math.max(15, r.load - 8) };
+          if (r.id === altRouter.id) return { ...r, load: Math.min(94, r.load + 8) };
+          return r;
+        }));
+      });
+
+      schedule(actionMs, () => {
+        setSensors((prev) => prev.map((s) => (
+          s.id === sensor.id ? { ...s, status: "online", rssi: -63 } : s
+        )));
+
+        addLog(
+          "ReroutingAgent",
+          `${sensor.id} recovered through ${altRouter.id}. Self-heal complete.`,
+          "success",
+          { reason: "traffic shifted automatically before prolonged downtime" }
+        );
+        addLog("DispatchAgent", "Dispatch avoided after autonomous recovery.", "success");
+
+        recordIncident({
+          mode,
+          failureKey,
+          autoHealed: true,
+          dispatched: false,
+          detectionMs,
+          resolutionMs: actionMs,
+          savedDollars: profile.perIncidentSavings,
+        });
+
+        setRunning(false);
+      });
+      return;
+    }
+
+    schedule(diagnosisMs + 650, () => {
+      const workOrderId = `WO-${Date.now().toString().slice(-6)}`;
+      addLog(
+        "DispatchAgent",
+        `Decision: dispatch technician for ${sensor.id}`,
+        "warn",
+        { reason: profile.dispatchReason || "reroute path not viable" }
+      );
+
+      setWorkOrders((prev) => [{
+        id: workOrderId,
+        sensor: sensor.id,
+        cause: profile.rootCause,
+        urgency: profile.rootCause === "BATTERY_DEAD" ? "CRITICAL" : "HIGH",
+        location: sensor.zone,
+        action: profile.rootCause === "BATTERY_DEAD"
+          ? "Replace battery module and validate heartbeat stream"
+          : "Inspect and repair on-device hardware; run diagnostics",
+        ts: Date.now(),
+      }, ...prev].slice(0, 20));
+    });
+
+    schedule(actionMs, () => {
+      addLog(
+        "DispatchAgent",
+        "Work order generated and routed automatically.",
+        "success",
+        { reason: "no manual click required after failure detection" }
+      );
+
+      recordIncident({
+        mode,
+        failureKey,
+        autoHealed: false,
+        dispatched: true,
+        detectionMs,
+        resolutionMs: actionMs,
+        savedDollars: profile.perIncidentSavings,
+      });
+
+      setRunning(false);
+    });
+  }
+
+  runIncidentRef.current = runIncident;
+
+  async function handleReset(resetMetrics = false) {
+    clearTimers();
+    setRunning(false);
+    setActiveFailure(null);
+    setSensors(baselineSensorsRef.current.map((s) => ({ ...s, status: "online" })));
+    setRouters(baselineRoutersRef.current.map((r) => ({ ...r })));
+    setLog([]);
+    setWorkOrders([]);
+    setSelected(null);
+
+    if (resetMetrics) {
+      setIncidentHistory(SEED_INCIDENTS);
+    }
+
+    if (backendReady) {
+      try {
+        await apiPost("api_reset");
+      } catch (e) {
+        addLog("System", "Backend reset unavailable; visual state reset only.", "warn");
+      }
+    }
   }
 
   useEffect(() => {
     async function init() {
       try {
-        addLog("System", "Connecting to SentinelMesh Jac backend…", "info");
+        addLog("System", "Connecting to backend graph…", "info");
         await apiPost("api_setup");
-        addLog("System", "Warehouse graph initialized ✓", "success");
         const state = await apiPost("api_state");
+
         if (state?.sensors?.length > 0) {
-          setSensors(state.sensors.map(s => ({
-            id: s.id, type: s.type, zone: s.zone, router: s.router,
-            x: s.x, y: s.y, status: s.status, rssi: s.rssi, battery: s.battery,
-          })));
+          const liveSensors = state.sensors.map((s) => ({
+            id: s.id,
+            type: s.type,
+            zone: s.zone,
+            router: s.router,
+            x: s.x,
+            y: s.y,
+            status: s.status,
+            rssi: s.rssi,
+            battery: s.battery,
+          }));
+          setSensors(liveSensors);
+          baselineSensorsRef.current = liveSensors;
+
           if (state.routers?.length > 0) {
-            setRouters(state.routers.map(r => ({
-              id: r.router_id, zone: r.zone, x: r.x, y: r.y, load: r.load,
-            })));
+            const liveRouters = state.routers.map((r) => ({
+              id: r.router_id,
+              zone: r.zone,
+              x: r.x,
+              y: r.y,
+              load: r.load,
+            }));
+            setRouters(liveRouters);
+            baselineRoutersRef.current = liveRouters;
           }
-          addLog("System", `${state.sensors.length} sensors loaded from live Jac graph ✓`, "success");
         }
+
         setBackendReady(true);
         setBackendStatus("live");
+        addLog("System", "Backend connection live.", "success");
       } catch (e) {
-        addLog("System", "Backend unavailable — running in demo mode", "warn");
         setBackendStatus("demo");
+        addLog("System", "Backend unavailable; using simulated telemetry feed.", "warn");
       }
     }
+
     init();
+
+    return () => clearTimers();
   }, []);
 
   useEffect(() => {
-    if (!backendReady) return;
-    const interval = setInterval(async () => {
-      try {
-        const state = await apiPost("api_state");
-        if (state?.sensors?.length > 0) {
-          setSensors(prev => prev.map(s => {
-            const live = state.sensors.find(ls => ls.id === s.id);
-            return live ? { ...s, status: live.status, rssi: live.rssi, battery: live.battery } : s;
-          }));
-        }
-      } catch (e) {}
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [backendReady]);
+    if (!autoMonitor) return;
 
-  // ── Generic simulation runner ──────────────────────────────────────────────
-  async function runSim(targetId, scenario) {
-    if (running) return;
-    setRunning(true);
-    setLog([]);
-    setWorkOrders([]);
+    const loop = () => {
+      if (running) return;
+      const candidates = sensors.filter((s) => s.status !== "offline");
+      if (candidates.length === 0) return;
 
-    if (backendReady) {
-      try {
-        addLog("HeartbeatMonitor", `Patrol cycle started — scanning 24 sensors`, "info");
-        await apiPost("api_simulate_dropout", { sensor_id: targetId });
-        addLog("HeartbeatMonitor", `${targetId} last_ping delta exceeded threshold — flagged OFFLINE`, "error");
-        setSensors(prev => prev.map(s => s.id === targetId ? { ...s, status: "offline", rssi: s.rssi - 40 } : s));
+      const sensor = candidates[Math.floor(Math.random() * candidates.length)];
+      const keys = Object.keys(FAILURE_PROFILES);
+      const failureKey = keys[Math.floor(Math.random() * keys.length)];
+      runIncidentRef.current?.(sensor.id, failureKey, "auto-monitor");
+    };
 
-        await new Promise(r => setTimeout(r, 1000));
-        addLog("DeadZoneMapper", `Mapping dead zone around ${targetId}…`, "info");
-        await new Promise(r => setTimeout(r, 800));
-        addLog("RootCauseAnalyzer", `Analyzing — battery, RSSI, router load for ${targetId}…`, "info");
+    const initial = setTimeout(loop, 2500);
+    const interval = setInterval(loop, 28000);
 
-        const result = await apiPost("api_run_pipeline");
-        await new Promise(r => setTimeout(r, 600));
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, [autoMonitor, running, sensors, mode]);
 
-        if (result?.diagnoses?.length > 0) {
-          const diag = result.diagnoses[0];
-          addLog("RootCauseAnalyzer", `cause: ${diag.cause}  confidence: ${Math.round((diag.confidence || 0.78) * 100)}%`, "success");
-          addLog("RootCauseAnalyzer", `action: ${diag.recommended_action}`, "info");
-        }
+  const online = sensors.filter((s) => s.status === "online").length;
+  const degraded = sensors.filter((s) => s.status === "degraded").length;
+  const offline = sensors.filter((s) => s.status === "offline").length;
 
-        await new Promise(r => setTimeout(r, 600));
+  const metrics = useMemo(() => {
+    const autonomous = incidentHistory.filter((i) => i.mode === "autonomous");
+    const traditional = incidentHistory.filter((i) => i.mode === "traditional");
+    const autoHealed = autonomous.filter((i) => i.autoHealed).length;
 
-        if (result?.work_orders?.length > 0) {
-          addLog("DispatchAgent", "Generating work order…", "info");
-          await new Promise(r => setTimeout(r, 500));
-          addLog("DispatchAgent", "Work order dispatched to maintenance team ✓", "success");
-          const diag = result.diagnoses?.[0] || {};
-          setWorkOrders(prev => [{
-            id: `WO-${Date.now()}`,
-            sensor: targetId,
-            cause: diag.cause || "HARDWARE_FAULT",
-            urgency: diag.cause === "BATTERY_DEAD" ? "CRITICAL" : "HIGH",
-            location: diag.location || "See sensor detail",
-            action: diag.recommended_action || "Inspect sensor hardware on-site",
-            ts: Date.now(),
-          }, ...prev]);
-        } else {
-          addLog("ReroutingAgent", `Scanning alternate routers for ${targetId}…`, "info");
-          await new Promise(r => setTimeout(r, 800));
-          addLog("ReroutingAgent", `${targetId} rerouted successfully. Self-heal SUCCESS ✓`, "success");
-          setSensors(prev => prev.map(s => s.id === targetId ? { ...s, status: "degraded" } : s));
-          addLog("DispatchAgent", "Self-heal succeeded. No work order required.", "success");
-        }
-      } catch (e) {
-        addLog("System", `Backend error: ${e.message}`, "error");
-      }
-      setRunning(false);
-    } else {
-      // Demo fallback events per scenario
-      const events = scenario === "sen042" ? [
-        { t: 0,     agent: "HeartbeatMonitor",   msg: "Patrol cycle started — scanning 24 sensors", type: "info" },
-        { t: 1200,  agent: "HeartbeatMonitor",   msg: "SEN-042 last_ping delta: 614s — threshold exceeded", type: "warn" },
-        { t: 2000,  agent: "HeartbeatMonitor",   msg: "SEN-042 flagged OFFLINE (severity: critical)", type: "error", sid: "SEN-042", ns: "offline" },
-        { t: 3400,  agent: "DeadZoneMapper",     msg: "Mapping dead zone around SEN-042…", type: "info" },
-        { t: 4600,  agent: "DeadZoneMapper",     msg: "RSSI neighbors: -71, -74, -68 dBm. Zone isolated.", type: "info" },
-        { t: 6000,  agent: "RootCauseAnalyzer",  msg: "Analyzing — battery:87%, router_load:68%, neighbors:3", type: "info" },
-        { t: 8200,  agent: "RootCauseAnalyzer",  msg: "cause: PHYSICAL_OBSTRUCTION  confidence: 78%", type: "success" },
-        { t: 9500,  agent: "ReroutingAgent",     msg: "RTR-002 load 68% > threshold. Scanning alternates…", type: "info" },
-        { t: 11000, agent: "ReroutingAgent",     msg: "SEN-042 rerouted via RTR-003. Self-heal SUCCESS ✓", type: "success", sid: "SEN-042", ns: "degraded" },
-        { t: 12800, agent: "DispatchAgent",      msg: "Self-heal succeeded. No work order required.", type: "success" },
-      ] : [
-        { t: 0,     agent: "HeartbeatMonitor",   msg: "Patrol cycle started — scanning 24 sensors", type: "info" },
-        { t: 1000,  agent: "HeartbeatMonitor",   msg: "SEN-007 last_ping delta: 892s — critical threshold exceeded", type: "warn" },
-        { t: 1800,  agent: "HeartbeatMonitor",   msg: "SEN-007 flagged OFFLINE (Assembly Floor — CNC Machine 1)", type: "error", sid: "SEN-007", ns: "offline" },
-        { t: 3000,  agent: "DeadZoneMapper",     msg: "Dead zone confirmed. RTR-002 serving 7 sensors at 68% load.", type: "warn" },
-        { t: 4200,  agent: "RootCauseAnalyzer",  msg: "Analyzing — battery:68%, router_load:68%, rssi:-55", type: "info" },
-        { t: 6400,  agent: "RootCauseAnalyzer",  msg: "cause: ROUTER_OVERLOAD  confidence: 84%", type: "success" },
-        { t: 7200,  agent: "RootCauseAnalyzer",  msg: "action: Redistribute load from RTR-002 to adjacent router", type: "info" },
-        { t: 8400,  agent: "ReroutingAgent",     msg: "RTR-002 at capacity. Evaluating RTR-004 (load: 28%)…", type: "info" },
-        { t: 10200, agent: "ReroutingAgent",     msg: "New SignalPath edge created: SEN-007 → RTR-004", type: "info" },
-        { t: 11800, agent: "ReroutingAgent",     msg: "SEN-007 rerouted via RTR-004. Self-heal SUCCESS ✓", type: "success", sid: "SEN-007", ns: "degraded" },
-        { t: 13000, agent: "DispatchAgent",      msg: "Mesh rebalanced. No dispatch required.", type: "success" },
-      ];
+    const autoDispatchRate = autonomous.length > 0
+      ? autonomous.filter((i) => i.dispatched).length / autonomous.length
+      : 0;
+    const traditionalDispatchRate = traditional.length > 0
+      ? traditional.filter((i) => i.dispatched).length / traditional.length
+      : 0;
 
-      events.forEach(ev => {
-        const tid = setTimeout(() => {
-          addLog(ev.agent, ev.msg, ev.type);
-          if (ev.sid) setSensors(prev => prev.map(s => s.id === ev.sid ? { ...s, status: ev.ns } : s));
-        }, ev.t);
-        timersRef.current.push(tid);
-      });
-      const endTid = setTimeout(() => setRunning(false), 14000);
-      timersRef.current.push(endTid);
-    }
-  }
+    const dispatchReduced = traditionalDispatchRate > 0
+      ? ((traditionalDispatchRate - autoDispatchRate) / traditionalDispatchRate) * 100
+      : 0;
 
-  async function handleReset() {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-    setSensors(INITIAL_SENSORS.map(s => ({ ...s, status: "online" })));
-    setLog([]);
-    setWorkOrders([]);
-    if (backendReady) {
-      try { await apiPost("api_reset"); addLog("System", "All sensors reset ✓", "success"); } catch (e) {}
-    }
-  }
+    const detectionAvg = avg(incidentHistory.map((i) => i.detectionMs));
+    const resolutionAvg = avg(incidentHistory.map((i) => i.resolutionMs).filter(Boolean));
+    const saved = incidentHistory.reduce((sum, i) => sum + (i.savedDollars || 0), 0);
 
-  const online   = sensors.filter(s => s.status === "online").length;
-  const degraded = sensors.filter(s => s.status === "degraded").length;
-  const offline  = sensors.filter(s => s.status === "offline").length;
+    const avgSavedPerIncident = incidentHistory.length > 0 ? saved / incidentHistory.length : 0;
+    const annualPerFacility = Math.round(avgSavedPerIncident * 42);
+
+    return {
+      autoHealedPct: autonomous.length > 0 ? (autoHealed / autonomous.length) * 100 : 0,
+      dispatchReducedPct: Math.max(0, dispatchReduced),
+      detectionAvg,
+      resolutionAvg,
+      saved,
+      annualPerFacility,
+      incidents: incidentHistory.length,
+    };
+  }, [incidentHistory]);
 
   const st = {
     root: {
       fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-      background: "#060d1a", color: "#e2e8f0", minHeight: "100vh",
-      display: "grid", gridTemplateRows: "56px 1fr",
-      gridTemplateColumns: "1fr 320px",
-      gridTemplateAreas: `"header header" "map sidebar"`,
+      background: "#060d1a",
+      color: "#e2e8f0",
+      minHeight: "100vh",
+      display: "grid",
+      gridTemplateRows: isNarrow ? "56px minmax(440px, 1fr) auto" : "56px 1fr",
+      gridTemplateColumns: isNarrow ? "1fr" : "1fr 360px",
+      gridTemplateAreas: isNarrow
+        ? `"header" "map" "sidebar"`
+        : `"header header" "map sidebar"`,
       overflow: "hidden",
     },
     header: {
-      gridArea: "header", background: "#0b1628",
+      gridArea: "header",
+      background: "#0b1628",
       borderBottom: "1px solid #1e3a5f",
-      display: "flex", alignItems: "center", padding: "0 24px", gap: 16,
-    },
-    brand: {
-      display: "flex", alignItems: "center", gap: 10,
-    },
-    brandLogo: {
-      width: 24, height: 24, objectFit: "contain",
+      display: "flex",
+      alignItems: "center",
+      padding: "0 16px",
+      gap: 12,
+      flexWrap: "wrap",
     },
     pill: (color) => ({
-      display: "flex", alignItems: "center", gap: 6,
-      background: color + "14", border: `1px solid ${color}44`,
-      borderRadius: 20, padding: "3px 12px", fontSize: 12, color,
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      background: `${color}14`,
+      border: `1px solid ${color}44`,
+      borderRadius: 20,
+      padding: "3px 10px",
+      fontSize: 11,
+      color,
     }),
     badge: {
-      fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: "0.08em",
       background: backendStatus === "live" ? "#22c55e18" : "#f59e0b18",
       border: `1px solid ${backendStatus === "live" ? "#22c55e44" : "#f59e0b44"}`,
       color: backendStatus === "live" ? "#22c55e" : "#f59e0b",
-      borderRadius: 4, padding: "3px 8px",
+      borderRadius: 4,
+      padding: "3px 8px",
     },
     sidebar: {
-      gridArea: "sidebar", background: "#0b1628",
-      borderLeft: "1px solid #1e3a5f",
-      display: "flex", flexDirection: "column", overflow: "hidden",
+      gridArea: "sidebar",
+      background: "#0b1628",
+      borderLeft: isNarrow ? "none" : "1px solid #1e3a5f",
+      borderTop: isNarrow ? "1px solid #1e3a5f" : "none",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      maxHeight: isNarrow ? "54vh" : "none",
     },
     sh: {
-      fontSize: 10, letterSpacing: "0.12em", color: "#475569",
-      fontWeight: 700, textTransform: "uppercase",
-      padding: "14px 16px 6px", borderBottom: "1px solid #1e3a5f",
+      fontSize: 10,
+      letterSpacing: "0.12em",
+      color: "#475569",
+      fontWeight: 700,
+      textTransform: "uppercase",
+      padding: "14px 16px 6px",
+      borderBottom: "1px solid #1e3a5f",
     },
-    simBtn: (color) => ({
-      margin: "8px 16px 0", padding: "10px 0",
-      background: running ? "#1e293b" : `linear-gradient(135deg, ${color} 0%, ${color}99 100%)`,
-      border: "none", borderRadius: 6,
-      color: running ? "#475569" : "#fff",
-      fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
+    modeToggle: {
+      margin: "10px 16px 0",
+      border: "1px solid #1e3a5f",
+      borderRadius: 8,
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      overflow: "hidden",
+      background: "#071226",
+    },
+    modeBtn: (active) => ({
+      background: active ? "#1d4ed8" : "transparent",
+      border: "none",
+      color: active ? "#ffffff" : "#64748b",
+      padding: "9px 6px",
+      fontFamily: "inherit",
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: "0.06em",
       cursor: running ? "not-allowed" : "pointer",
-      textTransform: "uppercase", fontFamily: "inherit",
+    }),
+    actionBtn: (color = "#0ea5e9") => ({
+      margin: "8px 16px 0",
+      padding: "10px 0",
+      background: running ? "#1e293b" : `linear-gradient(135deg, ${color} 0%, ${color}99 100%)`,
+      border: "none",
+      borderRadius: 6,
+      color: running ? "#475569" : "#fff",
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: "0.08em",
+      cursor: running ? "not-allowed" : "pointer",
+      textTransform: "uppercase",
+      fontFamily: "inherit",
     }),
     resetBtn: {
-      margin: "8px 16px 4px", padding: "6px 0",
-      background: "transparent", border: "1px solid #1e3a5f",
-      borderRadius: 6, color: "#475569", fontSize: 11,
-      cursor: "pointer", fontFamily: "inherit",
+      margin: "8px 16px 4px",
+      padding: "6px 0",
+      background: "transparent",
+      border: "1px solid #1e3a5f",
+      borderRadius: 6,
+      color: "#64748b",
+      fontSize: 11,
+      cursor: "pointer",
+      fontFamily: "inherit",
     },
     logBox: {
-      flex: 1, overflowY: "auto", padding: "4px 16px",
-      scrollbarWidth: "thin", scrollbarColor: "#1e3a5f transparent",
+      flex: 1,
+      overflowY: "auto",
+      padding: "4px 16px",
+      scrollbarWidth: "thin",
+      scrollbarColor: "#1e3a5f transparent",
     },
     woBox: {
-      maxHeight: 200, overflowY: "auto", padding: "0 16px 12px",
-      scrollbarWidth: "thin", scrollbarColor: "#1e3a5f transparent",
+      maxHeight: 170,
+      overflowY: "auto",
+      padding: "0 16px 12px",
+      scrollbarWidth: "thin",
+      scrollbarColor: "#1e3a5f transparent",
     },
     woCard: {
-      background: "#0f1f38", border: "1px solid #ef444444",
-      borderRadius: 6, padding: 12, marginBottom: 8, fontSize: 11,
+      background: "#0f1f38",
+      border: "1px solid #ef444444",
+      borderRadius: 6,
+      padding: 12,
+      marginBottom: 8,
+      fontSize: 11,
     },
-    detail: { borderTop: "1px solid #1e3a5f", padding: 16, fontSize: 12 },
+    detail: {
+      borderTop: "1px solid #1e3a5f",
+      padding: 16,
+      fontSize: 12,
+    },
   };
 
   return (
@@ -393,13 +818,18 @@ export default function SentinelMesh() {
       `}</style>
 
       <header style={st.header}>
-        <div>
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", textTransform: "uppercase", letterSpacing: "-0.03em" }}>Autonode</span>
-          <span style={{ fontSize: 10, color: "#ffffff", letterSpacing: "0.15em", marginLeft: 2 }}> / AI Dead Zone Hunter</span>
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 220 }}>
+          <span style={{ fontSize: 18, fontWeight: 800, color: "#38bdf8", letterSpacing: "-0.03em" }}>
+            Autonomous IoT Reliability Layer
+          </span>
+          <span style={{ fontSize: 10, color: "#94a3b8", letterSpacing: "0.07em" }}>
+            AUTONODE / SELF-HEALING INCIDENT ORCHESTRATION
+          </span>
         </div>
+
         <div style={{ flex: 1 }} />
         <span style={st.badge}>
-          {backendStatus === "live" ? "● LIVE JAC" : backendStatus === "demo" ? "◌ DEMO" : "⟳ CONNECTING"}
+          {backendStatus === "live" ? "● LIVE JAC" : backendStatus === "demo" ? "◌ DEMO FEED" : "⟳ CONNECTING"}
         </span>
         <div style={st.pill("#22c55e")}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block", animation: "pulse 2s infinite" }} />
@@ -417,39 +847,113 @@ export default function SentinelMesh() {
 
       <main style={{ gridArea: "map", position: "relative", overflow: "hidden", background: "#060d1a" }}>
         <svg width="100%" height="100%" viewBox="0 0 900 620" preserveAspectRatio="xMidYMid meet">
-          {ZONES.map(z => (
+          {ZONES.map((z) => (
             <g key={z.name}>
-              <rect x={z.x} y={z.y} width={z.w} height={z.h} rx="6"
-                fill={z.color + "08"} stroke={z.color + "44"} strokeWidth="1.5" strokeDasharray="6,3" />
-              <text x={z.x + 10} y={z.y + 22} fontSize="11" fill={z.color} opacity="0.8"
-                fontFamily="monospace" fontWeight="700" letterSpacing="0.08em">
+              <rect
+                x={z.x}
+                y={z.y}
+                width={z.w}
+                height={z.h}
+                rx="6"
+                fill={`${z.color}08`}
+                stroke={`${z.color}44`}
+                strokeWidth="1.5"
+                strokeDasharray="6,3"
+              />
+              <text
+                x={z.x + 10}
+                y={z.y + 22}
+                fontSize="11"
+                fill={z.color}
+                opacity="0.8"
+                fontFamily="monospace"
+                fontWeight="700"
+                letterSpacing="0.08em"
+              >
                 {z.name.toUpperCase()}
               </text>
             </g>
           ))}
-          {sensors.map(sen => {
-            const router = routers.find(r => r.id === sen.router);
+
+          {sensors.map((sen) => {
+            const router = routers.find((r) => r.id === sen.router);
             if (!router) return null;
             const sc = STATUS_COLOR[sen.status] || STATUS_COLOR.online;
             return (
-              <line key={sen.id + "-line"}
-                x1={router.x} y1={router.y} x2={sen.x} y2={sen.y}
-                stroke={sc.dot} strokeWidth="1"
+              <line
+                key={`${sen.id}-line`}
+                x1={router.x}
+                y1={router.y}
+                x2={sen.x}
+                y2={sen.y}
+                stroke={sc.dot}
+                strokeWidth="1"
                 strokeOpacity={sen.status === "online" ? 0.25 : 0.6}
-                strokeDasharray={sen.status === "offline" ? "4,4" : "none"} />
+                strokeDasharray={sen.status === "offline" ? "4,4" : "none"}
+              />
             );
           })}
-          {routers.map(r => <RouterNode key={r.id} router={r} />)}
-          {sensors.map(sen => (
+
+          {routers.map((r) => <RouterNode key={r.id} router={r} />)}
+          {sensors.map((sen) => (
             <SensorNode key={sen.id} sensor={sen} selected={selected?.id === sen.id} onClick={setSelected} />
           ))}
         </svg>
 
         <div style={{
-          position: "absolute", bottom: 16, left: 16,
-          background: "#0b162888", backdropFilter: "blur(8px)",
-          border: "1px solid #1e3a5f", borderRadius: 8,
-          padding: "10px 14px", display: "flex", gap: 16, fontSize: 11,
+          position: "absolute",
+          top: 14,
+          left: 14,
+          right: 14,
+          maxWidth: isNarrow ? "calc(100% - 28px)" : 640,
+          background: "#0b1628cc",
+          backdropFilter: "blur(10px)",
+          border: "1px solid #1e3a5f",
+          borderRadius: 8,
+          padding: "10px 12px",
+        }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(90px, 1fr))", gap: 8 }}>
+            <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "8px 6px" }}>
+              <div style={{ fontSize: 9, color: "#64748b", letterSpacing: "0.08em" }}>% AUTO-HEALED</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#22c55e" }}>{metrics.autoHealedPct.toFixed(1)}%</div>
+            </div>
+            <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "8px 6px" }}>
+              <div style={{ fontSize: 9, color: "#64748b", letterSpacing: "0.08em" }}>% DISPATCH REDUCED</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#38bdf8" }}>{metrics.dispatchReducedPct.toFixed(1)}%</div>
+            </div>
+            <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "8px 6px" }}>
+              <div style={{ fontSize: 9, color: "#64748b", letterSpacing: "0.08em" }}>AVG DETECTION</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#e2e8f0" }}>{formatDuration(metrics.detectionAvg)}</div>
+            </div>
+            <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "8px 6px" }}>
+              <div style={{ fontSize: 9, color: "#64748b", letterSpacing: "0.08em" }}>AVG RESOLUTION</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#e2e8f0" }}>{formatDuration(metrics.resolutionAvg)}</div>
+            </div>
+            <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "8px 6px" }}>
+              <div style={{ fontSize: 9, color: "#64748b", letterSpacing: "0.08em" }}>EST. $ SAVED</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#10b981" }}>{formatMoney(metrics.saved)}</div>
+            </div>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 11, color: "#22c55e" }}>
+            This prevents ~{formatMoney(metrics.annualPerFacility)} per facility per year.
+          </div>
+        </div>
+
+        <div style={{
+          position: "absolute",
+          bottom: 16,
+          left: 16,
+          right: isNarrow ? 16 : "auto",
+          maxWidth: isNarrow ? "unset" : 700,
+          background: "#0b162888",
+          backdropFilter: "blur(8px)",
+          border: "1px solid #1e3a5f",
+          borderRadius: 8,
+          padding: "10px 14px",
+          display: "flex",
+          gap: 14,
+          flexWrap: "wrap",
+          fontSize: 11,
         }}>
           {Object.entries(TYPE_ICONS).map(([t, icon]) => (
             <span key={t} style={{ color: "#94a3b8" }}>{icon} {t}</span>
@@ -459,32 +963,93 @@ export default function SentinelMesh() {
           <span style={{ color: "#f59e0b" }}>● degraded</span>
           <span style={{ color: "#ef4444" }}>● offline</span>
           <span style={{ color: "#334155" }}>|</span>
-          <span style={{ color: "#64748b", fontSize: 10 }}>dashed ring = demo sensor</span>
+          <span style={{ color: "#64748b", fontSize: 10 }}>
+            Simulated Device Telemetry Feed (MQTT → API bridge)
+          </span>
         </div>
       </main>
 
       <aside style={st.sidebar}>
-        <div style={st.sh}>Simulations</div>
+        <div style={st.sh}>Mode Contrast</div>
 
-        <button style={st.simBtn("#0ea5e9")} onClick={() => runSim("SEN-042", "sen042")} disabled={running}>
-          {running ? "⏳  Agents Running…" : "▶  SEN-042 — Cold Storage Dropout"}
+        <div style={st.modeToggle}>
+          <button
+            style={st.modeBtn(mode === "traditional")}
+            onClick={() => !running && setMode("traditional")}
+            disabled={running}
+          >
+            Traditional
+          </button>
+          <button
+            style={st.modeBtn(mode === "autonomous")}
+            onClick={() => !running && setMode("autonomous")}
+            disabled={running}
+          >
+            Autonomous
+          </button>
+        </div>
+
+        <div style={{ margin: "8px 16px 0", fontSize: 11, color: "#94a3b8", lineHeight: 1.4 }}>
+          Same failure profile: <span style={{ color: "#38bdf8" }}>{COMPARISON_SCENARIO.sensorId}</span> / {FAILURE_PROFILES[COMPARISON_SCENARIO.failureKey].label}
+        </div>
+
+        <button
+          style={st.actionBtn("#0ea5e9")}
+          onClick={() => runIncident(COMPARISON_SCENARIO.sensorId, COMPARISON_SCENARIO.failureKey, "comparison")}
+          disabled={running}
+        >
+          {running ? "⏳ Agents Running…" : "▶ Replay Same Failure"}
         </button>
 
-        <button style={st.simBtn("#f59e0b")} onClick={() => runSim("SEN-007", "sen007")} disabled={running}>
-          {running ? "⏳  Agents Running…" : "▶  SEN-007 — Assembly Floor Dropout"}
+        <div style={{ margin: "8px 16px 0", fontSize: 10, color: "#64748b", lineHeight: 1.4 }}>
+          {mode === "traditional"
+            ? "Traditional Mode: sensor turns red and waits for manual ops."
+            : "Autonomous Mode: agents detect, explain, reroute/dispatch automatically."}
+        </div>
+
+        <div style={st.sh}>Failure Types</div>
+
+        {Object.entries(FAILURE_PROFILES).map(([key, profile]) => (
+          <button
+            key={key}
+            style={st.actionBtn(key === "BATTERY_DEAD" || key === "HARDWARE_FAULT" ? "#ef4444" : "#10b981")}
+            onClick={() => runIncident(DEMO_SENSORS_BY_FAILURE[key], key, "manual")}
+            disabled={running}
+          >
+            {running ? "⏳ Running…" : `▶ ${profile.label}`}
+          </button>
+        ))}
+
+        <button
+          style={st.resetBtn}
+          onClick={() => setAutoMonitor((v) => !v)}
+        >
+          {autoMonitor ? "Pause Auto Monitor" : "Resume Auto Monitor"}
         </button>
 
-        <button style={st.resetBtn} onClick={handleReset}>↺ Reset All Sensors</button>
+        <button style={st.resetBtn} onClick={() => handleReset(false)}>↺ Reset Sensors</button>
+        <button style={st.resetBtn} onClick={() => handleReset(true)}>↺ Reset Sensors + Metrics</button>
+
+        <div style={{ margin: "6px 16px", padding: "8px", borderRadius: 6, border: "1px solid #1e3a5f", background: "#071226" }}>
+          <div style={{ fontSize: 10, color: "#64748b", letterSpacing: "0.08em", marginBottom: 5 }}>
+            MQTT → API EXAMPLE
+          </div>
+          <pre style={{ margin: 0, fontSize: 10, color: "#94a3b8", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>
+{`topic: facility/sensors/SEN-007/telemetry
+payload: {"battery":3,"rssi":-92,"last_ping_ms":1730}
+bridge: mosquitto -> POST /walker/api_ingest`}
+          </pre>
+        </div>
 
         <div style={st.sh}>Agent Feed</div>
         <div ref={logRef} style={st.logBox}>
           {log.length === 0 && (
             <div style={{ color: "#334155", fontSize: 11, padding: "12px 0", textAlign: "center" }}>
-              No events yet. Run a simulation.
+              Waiting for telemetry anomalies.
             </div>
           )}
           {log.map((entry, i) => (
-            <LogEntry key={i} entry={entry} fresh={freshLog === entry.agent + entry.msg} />
+            <LogEntry key={`${entry.ts}-${i}`} entry={entry} fresh={freshLog === `${entry.ts}-${entry.agent}-${entry.msg}`} />
           ))}
         </div>
 
@@ -492,11 +1057,13 @@ export default function SentinelMesh() {
           <>
             <div style={st.sh}>Work Orders ({workOrders.length})</div>
             <div style={st.woBox}>
-              {workOrders.map(wo => (
+              {workOrders.map((wo) => (
                 <div key={wo.id} style={st.woCard}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ color: "#ef4444", fontWeight: 700 }}>{wo.id}</span>
-                    <span style={{ background: "#ef444422", color: "#ef4444", borderRadius: 3, padding: "1px 6px", fontSize: 10 }}>{wo.urgency}</span>
+                    <span style={{ background: "#ef444422", color: "#ef4444", borderRadius: 3, padding: "1px 6px", fontSize: 10 }}>
+                      {wo.urgency}
+                    </span>
                   </div>
                   <div style={{ color: "#94a3b8", marginBottom: 4 }}>📍 {wo.location}</div>
                   <div style={{ color: "#f59e0b", marginBottom: 6 }}>⚠ {wo.cause}</div>
@@ -519,15 +1086,28 @@ export default function SentinelMesh() {
                 ["RSSI", `${selected.rssi} dBm`],
                 ["Battery", `${selected.battery}%`],
                 ["Status", selected.status.toUpperCase()],
+                ["Active Failure", activeFailure?.sensorId === selected.id ? FAILURE_PROFILES[activeFailure.failureKey].label : "none"],
               ].map(([k, v]) => (
-                <>
+                <div key={`${selected.id}-${k}`} style={{ display: "contents" }}>
                   <span style={{ color: "#475569", fontSize: 11 }}>{k}</span>
                   <span style={{ color: STATUS_COLOR[selected.status]?.dot || "#22c55e", fontSize: 11, fontWeight: 700 }}>{v}</span>
-                </>
+                </div>
               ))}
             </div>
-            <button onClick={() => setSelected(null)}
-              style={{ marginTop: 10, background: "transparent", border: "1px solid #1e3a5f", borderRadius: 4, color: "#475569", fontSize: 10, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+            <button
+              onClick={() => setSelected(null)}
+              style={{
+                marginTop: 10,
+                background: "transparent",
+                border: "1px solid #1e3a5f",
+                borderRadius: 4,
+                color: "#475569",
+                fontSize: 10,
+                padding: "4px 10px",
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
               CLOSE ✕
             </button>
           </div>
