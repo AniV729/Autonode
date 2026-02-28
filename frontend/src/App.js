@@ -695,7 +695,6 @@ export default function SentinelMesh() {
       color: "#e2e8f0",
       minHeight: "100vh",
       height: isNarrow ? "auto" : "100vh",
-      padding: isNarrow ? 0 : "0 24px",
       display: "grid",
       gridTemplateRows: isNarrow ? "auto minmax(320px, 56vh) auto" : "auto 1fr",
       gridTemplateColumns: isNarrow ? "1fr" : "minmax(0, 1fr) 360px",
@@ -749,7 +748,6 @@ export default function SentinelMesh() {
       minHeight: 0,
       overflowX: "hidden",
       overflowY: "auto",
-      paddingRight: isNarrow ? 0 : 5,
       scrollbarGutter: "stable both-edges",
     },
     sh: {
@@ -837,7 +835,7 @@ export default function SentinelMesh() {
       fontSize: 12,
     },
     accordionBtn: {
-      width: "100%",
+      width: "calc(100% - 20px)",
       textAlign: "left",
       background: "#071226",
       color: "#94a3b8",
