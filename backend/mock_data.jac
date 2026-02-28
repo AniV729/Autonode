@@ -3,12 +3,13 @@ Autonode — Mock Data Seeder
 """
 
 import from main { Warehouse, Zone, Router, Sensor }
+import time;
 
 walker setup_warehouse {
     has facility_name: str = "Meridian Industrial Campus";
 
     can build with entry {
-        t = 9999999999.0;
+        t = time.time();
 
         wh = Warehouse("Meridian Industrial Campus", "FAC-007");
         root ++> wh;

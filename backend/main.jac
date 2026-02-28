@@ -2,6 +2,8 @@
 Autonode — Core module
 """
 
+import time;
+
 node Warehouse {
     has name: str;
     has facility_id: str;
@@ -68,7 +70,7 @@ walker HeartbeatMonitor {
 
     can check with Sensor entry {
         self.stats["total"] += 1;
-        elapsed = 9999999999.0 - here.last_ping;
+        elapsed = time.time() - here.last_ping;
 
         if elapsed > self.threshold_seconds * 2 {
             here.status = "offline";
@@ -163,6 +165,10 @@ walker RootCauseAnalyzer {
                 cause = "BATTERY_DEAD";
                 confidence = 0.97;
                 action = "Replace sensor battery immediately";
+            } elif here.rssi <= -60 and here.rssi > -80 {
+                cause = "ROUTER_OVERLOAD";
+                confidence = 0.84;
+                action = "Reroute traffic to lower-load mesh path";
             } elif here.rssi < -80 {
                 cause = "PHYSICAL_OBSTRUCTION";
                 confidence = 0.78;
@@ -221,11 +227,14 @@ walker DispatchAgent {
     has diagnosis: dict = {};
     has webhook_url: str = "";
     has work_order: str = "";
+    has work_order_data: dict = {};
     has order_sent: bool = False;
 
     can start with `root entry {
         diag = self.diagnosis;
         urgency = "CRITICAL" if diag.get("cause") in ["BATTERY_DEAD", "HARDWARE_FAULT"] else "HIGH";
+        created_at = time.time();
+        work_order_id = "WO-" + str(int(created_at * 1000));
 
         self.work_order = (
             "========================================\n"
@@ -241,8 +250,24 @@ walker DispatchAgent {
             "========================================"
         );
 
+        self.work_order_data = {
+            "id": work_order_id,
+            "sensor_id": diag.get("sensor_id", "unknown"),
+            "sensor_type": diag.get("sensor_type", "unknown"),
+            "zone": diag.get("zone", "unknown"),
+            "location": diag.get("location", "unknown"),
+            "router_id": diag.get("router_id", "unknown"),
+            "cause": diag.get("cause", "UNKNOWN"),
+            "recommended_action": diag.get("recommended_action", "Inspect sensor."),
+            "urgency": urgency,
+            "created_at": created_at,
+            "order_sent": False,
+            "channel_status": {}
+        };
+
         report {
             "work_order": self.work_order,
+            "work_order_data": self.work_order_data,
             "sensor_id": diag.get("sensor_id", "unknown"),
             "order_sent": False
         };
@@ -272,17 +297,17 @@ walker run_pipeline {
                 diagnoser = root spawn RootCauseAnalyzer(sid);
                 results["diagnoses"].append(diagnoser.diagnosis);
 
-                auto_fixable = ["ROUTER_OVERLOAD", "NETWORK_CONGESTION"];
+                auto_fixable = ["ROUTER_OVERLOAD", "NETWORK_CONGESTION", "PHYSICAL_OBSTRUCTION"];
                 if diagnoser.diagnosis.get("cause") in auto_fixable {
                     rerouter = root spawn ReroutingAgent(sid);
                     results["reroutes"].append(rerouter.reroute_details);
                     if not rerouter.success {
                         dispatcher = root spawn DispatchAgent(diagnoser.diagnosis);
-                        results["work_orders"].append(dispatcher.work_order);
+                        results["work_orders"].append(dispatcher.work_order_data);
                     }
                 } else {
                     dispatcher = root spawn DispatchAgent(diagnoser.diagnosis);
-                    results["work_orders"].append(dispatcher.work_order);
+                    results["work_orders"].append(dispatcher.work_order_data);
                 }
             }
         }
@@ -303,7 +328,7 @@ walker simulate_dropout {
 
     can trigger with Sensor entry {
         if here.sensor_id == self.target_sensor_id {
-            here.last_ping = 1000.0;
+            here.last_ping = time.time() - 600.0;
             here.rssi = -95;
             self.done = True;
         }
@@ -319,7 +344,7 @@ walker reset_sensors {
     can go_router with Router entry { visit [-->]; }
 
     can reset with Sensor entry {
-        here.last_ping = 9999999999.0;
+        here.last_ping = time.time();
         here.status = "online";
         if here.rssi < -60 {
             here.rssi = -55;
@@ -385,4 +410,3 @@ walker debug_root {
         }
     }
 }
-

@@ -11,4 +11,4 @@ entry-point = "server.jac"
 watchdog = ">=3.0.0"
 
 [jac-cloud]
-disable_auth = true
+disable_auth = false

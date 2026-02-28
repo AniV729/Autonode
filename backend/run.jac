@@ -1,4 +1,5 @@
 import from main { Warehouse, Zone, Router, Sensor }
+import time;
 
 with entry {
     print("╔═══════════════════════════════════════════╗");
@@ -7,7 +8,7 @@ with entry {
     print("╚═══════════════════════════════════════════╝\n");
 
     print("▶ [1/4] Initializing warehouse graph...");
-    t = 9999999999.0;
+    t = time.time();
 
     wh = Warehouse("Meridian Industrial Campus", "FAC-007");
     root ++> wh;
@@ -79,14 +80,14 @@ with entry {
 
     print("▶ [3/4] Simulating sensor dropout...");
     print("  💥 SEN-042 going dark...");
-    s042.last_ping = 1000.0;
+    s042.last_ping = time.time() - 600.0;
     s042.rssi = -95;
     print("  ✓ SEN-042 last_ping set to 10 minutes ago\n");
 
     print("▶ [4/4] Running agent pipeline...\n");
 
     alerts = [];
-    now_t = 9999999999.0;
+    now_t = time.time();
 
     for zone in [wh -->] {
         for router in [zone -->] {

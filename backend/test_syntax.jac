@@ -1,6 +1,6 @@
 """Minimal syntax test for jaclang 0.11.2"""
 
-import:py time;
+import time;
 
 node TestNode {
     has name: str = "test";

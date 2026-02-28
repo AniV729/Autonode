@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: autonode_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      AUTONODE_MAX_EVENT_HISTORY: "400"
+      AUTONODE_MAX_WORK_ORDER_HISTORY: "150"
+    volumes:
+      - backend_data:/app/.jac/data
+    networks:
+      - autonode_net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 768m
+    cpus: 1.0
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: autonode_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - autonode_net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+    cpus: 0.75
+
+networks:
+  autonode_net:
+    driver: bridge
+
+volumes:
+  backend_data:
