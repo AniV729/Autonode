@@ -19,11 +19,11 @@ const INITIAL_SENSORS = [
   { id: "SEN-014", type: "asset",     zone: "Loading Bay",     router: "RTR-003", x: 780, y: 100, status: "online",   rssi: -58, battery: 86 },
   { id: "SEN-015", type: "temp",      zone: "Loading Bay",     router: "RTR-003", x: 740, y: 230, status: "online",   rssi: -70, battery: 55 },
   { id: "SEN-016", type: "vibration", zone: "Loading Bay",     router: "RTR-003", x: 840, y: 180, status: "online",   rssi: -65, battery: 71 },
-  { id: "SEN-017", type: "gas",       zone: "Maintenance Bay", router: "RTR-004", x: 430, y: 450, status: "online",   rssi: -53, battery: 93 },
-  { id: "SEN-018", type: "vibration", zone: "Maintenance Bay", router: "RTR-004", x: 520, y: 400, status: "online",   rssi: -60, battery: 80 },
-  { id: "SEN-019", type: "temp",      zone: "Maintenance Bay", router: "RTR-004", x: 610, y: 490, status: "online",   rssi: -56, battery: 88 },
-  { id: "SEN-020", type: "asset",     zone: "Maintenance Bay", router: "RTR-004", x: 700, y: 450, status: "online",   rssi: -67, battery: 64 },
-  { id: "SEN-021", type: "temp",      zone: "Maintenance Bay", router: "RTR-004", x: 470, y: 540, status: "online",   rssi: -61, battery: 76 },
+  { id: "SEN-017", type: "gas",       zone: "Maintenance Bay", router: "RTR-004", x: 460, y: 450, status: "online",   rssi: -53, battery: 93 },
+  { id: "SEN-018", type: "vibration", zone: "Maintenance Bay", router: "RTR-004", x: 550, y: 400, status: "online",   rssi: -60, battery: 80 },
+  { id: "SEN-019", type: "temp",      zone: "Maintenance Bay", router: "RTR-004", x: 640, y: 490, status: "online",   rssi: -56, battery: 88 },
+  { id: "SEN-020", type: "asset",     zone: "Maintenance Bay", router: "RTR-004", x: 730, y: 450, status: "online",   rssi: -67, battery: 64 },
+  { id: "SEN-021", type: "temp",      zone: "Maintenance Bay", router: "RTR-004", x: 500, y: 540, status: "online",   rssi: -61, battery: 76 },
   { id: "SEN-022", type: "gas",       zone: "Cold Storage",    router: "RTR-001", x: 220, y: 300, status: "online",   rssi: -54, battery: 89 },
   { id: "SEN-023", type: "asset",     zone: "Assembly Floor",  router: "RTR-002", x: 630, y: 170, status: "online",   rssi: -58, battery: 82 },
   { id: "SEN-024", type: "vibration", zone: "Loading Bay",     router: "RTR-003", x: 800, y: 270, status: "online",   rssi: -63, battery: 70 },
@@ -33,14 +33,14 @@ const ROUTERS_FALLBACK = [
   { id: "RTR-001", zone: "Cold Storage",    x: 160, y: 230, load: 32 },
   { id: "RTR-002", zone: "Assembly Floor",  x: 510, y: 175, load: 68 },
   { id: "RTR-003", zone: "Loading Bay",     x: 760, y: 185, load: 41 },
-  { id: "RTR-004", zone: "Maintenance Bay", x: 565, y: 465, load: 28 },
+  { id: "RTR-004", zone: "Maintenance Bay", x: 595, y: 465, load: 28 },
 ];
 
 const ZONES = [
   { name: "Cold Storage",    x: 20,  y: 50,  w: 300, h: 350, color: "#0ea5e9" },
   { name: "Assembly Floor",  x: 370, y: 50,  w: 290, h: 300, color: "#f59e0b" },
   { name: "Loading Bay",     x: 670, y: 50,  w: 210, h: 300, color: "#8b5cf6" },
-  { name: "Maintenance Bay", x: 370, y: 360, w: 390, h: 230, color: "#10b981" },
+  { name: "Maintenance Bay", x: 400, y: 360, w: 390, h: 230, color: "#10b981" },
 ];
 
 const TYPE_ICONS = { temp: "🌡", vibration: "📳", gas: "💨", asset: "📦" };
@@ -280,12 +280,7 @@ export default function SentinelMesh() {
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
   const [activeFailure, setActiveFailure] = useState(null);
   const [activeAction, setActiveAction] = useState(null);
-  const [showSimulationControls, setShowSimulationControls] = useState(false);
-  const [showManualActions, setShowManualActions] = useState(false);
-  const [showStatsPanel, setShowStatsPanel] = useState(false);
-  const [showAgentFeed, setShowAgentFeed] = useState(true);
-  const [showWorkOrders, setShowWorkOrders] = useState(true);
-  const [showSensorDetail, setShowSensorDetail] = useState(true);
+  const [activeSidebarTab, setActiveSidebarTab] = useState("agents");
 
   const logRef = useRef(null);
   const timersRef = useRef([]);
@@ -296,7 +291,7 @@ export default function SentinelMesh() {
   const isNarrow = viewportWidth < 1100;
   const isCompact = viewportWidth < 760;
   const isTiny = viewportWidth < 480;
-  const metricColumns = isTiny ? 1 : isCompact ? 2 : isNarrow ? 3 : 5;
+  const sidebarMetricColumns = isTiny ? 1 : 2;
 
   useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth);
@@ -747,20 +742,53 @@ export default function SentinelMesh() {
       minWidth: 0,
       minHeight: 0,
       overflowX: "hidden",
-      overflowY: "auto",
+      overflowY: "hidden",
       scrollbarGutter: "stable both-edges",
     },
-    sh: {
-      fontSize: 10,
-      letterSpacing: "0.12em",
-      color: "#475569",
-      fontWeight: 700,
-      textTransform: "uppercase",
-      padding: "14px 16px 6px",
+    tabRow: {
+      display: "flex",
+      flexWrap: "nowrap",
+      gap: 4,
+      padding: "8px",
       borderBottom: "1px solid #1e3a5f",
+      background: "#071226",
+      minWidth: 0,
+      overflow: "hidden",
+    },
+    tabBtn: (active) => ({
+      flex: "1 1 0",
+      minWidth: 0,
+      border: active ? "1px solid #1d4ed8" : "1px solid #1e3a5f",
+      background: active ? "#1d4ed8" : "#0b1628",
+      color: active ? "#fff" : "#94a3b8",
+      borderRadius: 6,
+      padding: "7px 4px",
+      fontSize: 10,
+      fontWeight: 700,
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      letterSpacing: "0.03em",
+      textAlign: "center",
+    }),
+    tabBody: {
+      flex: 1,
+      minHeight: 0,
+      display: "flex",
+      overflow: "hidden",
+    },
+    sectionScroll: {
+      flex: 1,
+      minHeight: 0,
+      overflowY: "auto",
+      padding: "10px 12px 12px",
+      scrollbarWidth: "thin",
+      scrollbarColor: "#1e3a5f transparent",
     },
     modeToggle: {
-      margin: "10px 16px 0",
+      margin: "4px 0 0",
       border: "1px solid #1e3a5f",
       borderRadius: 8,
       display: "grid",
@@ -780,7 +808,7 @@ export default function SentinelMesh() {
       cursor: running ? "not-allowed" : "pointer",
     }),
     actionBtn: (color = "#0ea5e9") => ({
-      margin: "8px 16px 0",
+      margin: "8px 0 0",
       padding: "10px 0",
       background: running ? "#1e293b" : `linear-gradient(135deg, ${color} 0%, ${color}99 100%)`,
       border: "none",
@@ -792,9 +820,10 @@ export default function SentinelMesh() {
       cursor: running ? "not-allowed" : "pointer",
       textTransform: "uppercase",
       fontFamily: "inherit",
+      width: "100%",
     }),
     resetBtn: {
-      margin: "8px 16px 4px",
+      margin: "8px 0 0",
       padding: "6px 0",
       background: "transparent",
       border: "1px solid #1e3a5f",
@@ -803,19 +832,22 @@ export default function SentinelMesh() {
       fontSize: 11,
       cursor: "pointer",
       fontFamily: "inherit",
+      width: "100%",
     },
     logBox: {
       flex: 1,
       overflowY: "auto",
-      minHeight: 220,
-      padding: "4px 16px",
+      minHeight: 0,
+      padding: "2px 0",
       scrollbarWidth: "thin",
       scrollbarColor: "#1e3a5f transparent",
     },
     woBox: {
-      maxHeight: 170,
+      maxHeight: "none",
+      minHeight: 0,
+      flex: 1,
       overflowY: "auto",
-      padding: "0 16px 12px",
+      padding: "0 0 12px",
       scrollbarWidth: "thin",
       scrollbarColor: "#1e3a5f transparent",
     },
@@ -831,25 +863,12 @@ export default function SentinelMesh() {
     },
     detail: {
       borderTop: "1px solid #1e3a5f",
-      padding: 16,
+      marginTop: 10,
+      padding: 12,
       fontSize: 12,
-    },
-    accordionBtn: {
-      width: "calc(100% - 20px)",
-      textAlign: "left",
-      background: "#071226",
-      color: "#94a3b8",
-      border: "1px solid #1e3a5f",
       borderRadius: 6,
-      padding: "8px 10px",
-      margin: "8px 16px 6px",
-      fontSize: 11,
-      fontFamily: "inherit",
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 8,
+      background: "#071226",
+      border: "1px solid #1e3a5f",
     },
   };
 
@@ -951,87 +970,6 @@ export default function SentinelMesh() {
 
         <div style={{
           position: "absolute",
-          top: 10,
-          right: 10,
-          zIndex: 3,
-        }}>
-          <button
-            onClick={() => setShowStatsPanel((v) => !v)}
-            style={{
-              border: "1px solid #1e3a5f",
-              borderRadius: 8,
-              padding: "8px 12px",
-              background: "#0b1628cc",
-              backdropFilter: "blur(8px)",
-              color: "#94a3b8",
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: "0.05em",
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            {showStatsPanel ? "Hide Stats ▴" : "Show Stats ▾"}
-          </button>
-        </div>
-
-        {showStatsPanel && (
-          <div style={{
-            position: "absolute",
-            top: 52,
-            right: 10,
-            left: isNarrow ? 10 : "auto",
-            width: isNarrow ? "auto" : 640,
-            maxWidth: isNarrow ? "calc(100% - 20px)" : 640,
-            background: "#0b1628cc",
-            backdropFilter: "blur(10px)",
-            border: "1px solid #1e3a5f",
-            borderRadius: 8,
-            padding: "8px 10px",
-            zIndex: 2,
-          }}>
-            <div style={{ display: "grid", gridTemplateColumns: `repeat(${metricColumns}, minmax(82px, 1fr))`, gap: 6 }}>
-              <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "6px 5px" }}>
-                <div style={{ fontSize: 8, color: "#64748b", letterSpacing: "0.07em" }}>% AUTO-HEALED</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#22c55e" }}>
-                  {metrics.autoHealedPct === null ? "--" : `${metrics.autoHealedPct.toFixed(1)}%`}
-                </div>
-              </div>
-              <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "6px 5px" }}>
-                <div style={{ fontSize: 8, color: "#64748b", letterSpacing: "0.07em" }}>% DISPATCH REDUCED</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#38bdf8" }}>
-                  {metrics.dispatchReducedPct === null ? "--" : `${metrics.dispatchReducedPct.toFixed(1)}%`}
-                </div>
-              </div>
-              <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "6px 5px" }}>
-                <div style={{ fontSize: 8, color: "#64748b", letterSpacing: "0.07em" }}>AVG DETECTION</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#e2e8f0" }}>
-                  {metrics.detectionAvg === null ? "--" : formatDuration(metrics.detectionAvg)}
-                </div>
-              </div>
-              <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "6px 5px" }}>
-                <div style={{ fontSize: 8, color: "#64748b", letterSpacing: "0.07em" }}>AVG RESOLUTION</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#e2e8f0" }}>
-                  {metrics.resolutionAvg === null ? "--" : formatDuration(metrics.resolutionAvg)}
-                </div>
-              </div>
-              <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "6px 5px" }}>
-                <div style={{ fontSize: 8, color: "#64748b", letterSpacing: "0.07em" }}>EST. $ SAVED</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#10b981" }}>
-                  {metrics.saved === null ? "--" : formatMoney(metrics.saved)}
-                </div>
-              </div>
-            </div>
-            <div style={{ marginTop: 6, fontSize: 10, color: "#22c55e" }}>
-              {metrics.annualPerFacility === null
-                ? "Run a simulation to populate business outcome metrics."
-                : `This prevents ~${formatMoney(metrics.annualPerFacility)} per facility per year.`}
-            </div>
-          </div>
-        )}
-
-        <div style={{
-          position: "absolute",
           bottom: 16,
           left: 16,
           right: isNarrow ? 16 : "auto",
@@ -1053,123 +991,210 @@ export default function SentinelMesh() {
           <span style={{ color: "#22c55e" }}>● online</span>
           <span style={{ color: "#f59e0b" }}>● degraded</span>
           <span style={{ color: "#ef4444" }}>● offline</span>
-          <span style={{ color: "#334155" }}>|</span>
-          <span style={{ color: "#64748b", fontSize: 10 }}>
-            Simulated Device Telemetry Feed (MQTT → API bridge)
-          </span>
         </div>
       </main>
 
       <aside style={st.sidebar}>
-        <button style={st.accordionBtn} onClick={() => setShowSimulationControls((v) => !v)}>
-          <span>Simulation Controls</span>
-          <span>{showSimulationControls ? "▾" : "▸"}</span>
-        </button>
-
-        {showSimulationControls && (
-          <>
-            <div style={st.modeToggle}>
-              <button
-                style={st.modeBtn(mode === "traditional")}
-                onClick={() => !running && setMode("traditional")}
-                disabled={running}
-              >
-                Traditional
-              </button>
-              <button
-                style={st.modeBtn(mode === "autonomous")}
-                onClick={() => !running && setMode("autonomous")}
-                disabled={running}
-              >
-                Autonomous
-              </button>
-            </div>
-
-            <div style={{ margin: "8px 16px 0", fontSize: 11, color: "#94a3b8", lineHeight: 1.4 }}>
-              Same failure profile: <span style={{ color: "#38bdf8" }}>{COMPARISON_SCENARIO.sensorId}</span> / {FAILURE_PROFILES[COMPARISON_SCENARIO.failureKey].label}
-            </div>
-
-            <button
-              style={st.actionBtn("#0ea5e9")}
-              onClick={() => runIncident(COMPARISON_SCENARIO.sensorId, COMPARISON_SCENARIO.failureKey, "comparison", "comparison")}
-              disabled={running}
-            >
-              {running && activeAction === "comparison" ? "⏳ Agents Running…" : "▶ Replay Same Failure"}
+        <div style={st.tabRow}>
+          {[
+            ["controls", "Controls"],
+            ["resets", "Resets"],
+            ["debug", "Data"],
+            ["agents", "Agents"],
+            ["work_orders", "Work"],
+          ].map(([id, label]) => (
+            <button key={id} style={st.tabBtn(activeSidebarTab === id)} onClick={() => setActiveSidebarTab(id)}>
+              {label}
             </button>
+          ))}
+        </div>
 
-            <div style={{ margin: "8px 16px 2px", fontSize: 10, color: "#64748b", lineHeight: 1.4 }}>
-              {mode === "traditional"
-                ? "Traditional Mode: sensor turns red and waits for manual ops."
-                : "Autonomous Mode: agents detect, explain, reroute/dispatch automatically."}
-            </div>
-          </>
-        )}
-
-        <button style={st.accordionBtn} onClick={() => setShowManualActions((v) => !v)}>
-          <span>Manual Failure Actions</span>
-          <span>{showManualActions ? "▾" : "▸"}</span>
-        </button>
-
-        {showManualActions && (
-          <>
-            {Object.entries(FAILURE_PROFILES).map(([key, profile]) => (
-              <button
-                key={key}
-                style={st.actionBtn(key === "BATTERY_DEAD" || key === "HARDWARE_FAULT" ? "#ef4444" : "#10b981")}
-                onClick={() => runIncident(DEMO_SENSORS_BY_FAILURE[key], key, "manual", `failure-${key}`)}
-                disabled={running}
-              >
-                {running && activeAction === `failure-${key}` ? "⏳ Running…" : `▶ ${profile.label}`}
-              </button>
-            ))}
-
-            <button
-              style={st.resetBtn}
-              onClick={() => setAutoMonitor((v) => !v)}
-            >
-              {autoMonitor ? "Pause Auto Monitor" : "Resume Auto Monitor"}
-            </button>
-
-            <button style={st.resetBtn} onClick={() => handleReset(false)}>↺ Reset Sensors</button>
-            <button style={st.resetBtn} onClick={() => handleReset(true)}>↺ Reset Sensors + Metrics</button>
-
-            <div style={{ margin: "6px 16px", padding: "8px", borderRadius: 6, border: "1px solid #1e3a5f", background: "#071226" }}>
-              <div style={{ fontSize: 10, color: "#64748b", letterSpacing: "0.08em", marginBottom: 5 }}>
-                MQTT → API EXAMPLE
+        <div style={st.tabBody}>
+          {activeSidebarTab === "controls" && (
+            <div style={st.sectionScroll}>
+              <div style={st.modeToggle}>
+                <button
+                  style={st.modeBtn(mode === "traditional")}
+                  onClick={() => !running && setMode("traditional")}
+                  disabled={running}
+                >
+                  Traditional
+                </button>
+                <button
+                  style={st.modeBtn(mode === "autonomous")}
+                  onClick={() => !running && setMode("autonomous")}
+                  disabled={running}
+                >
+                  Autonomous
+                </button>
               </div>
-              <pre style={{ margin: 0, fontSize: 10, color: "#94a3b8", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>
+
+              <div style={{ marginTop: 8, fontSize: 11, color: "#94a3b8", lineHeight: 1.4 }}>
+                Same failure profile: <span style={{ color: "#38bdf8" }}>{COMPARISON_SCENARIO.sensorId}</span> / {FAILURE_PROFILES[COMPARISON_SCENARIO.failureKey].label}
+              </div>
+
+              <button
+                style={st.actionBtn("#0ea5e9")}
+                onClick={() => runIncident(COMPARISON_SCENARIO.sensorId, COMPARISON_SCENARIO.failureKey, "comparison", "comparison")}
+                disabled={running}
+              >
+                {running && activeAction === "comparison" ? "⏳ Agents Running…" : "▶ Replay Same Failure"}
+              </button>
+
+              <div style={{ marginTop: 8, fontSize: 10, color: "#64748b", lineHeight: 1.4 }}>
+                {mode === "traditional"
+                  ? "Traditional Mode: alerts detected, manual operations required."
+                  : "Autonomous Mode: agents detect, explain, reroute/dispatch automatically."}
+              </div>
+
+              {Object.entries(FAILURE_PROFILES).map(([key, profile]) => (
+                <button
+                  key={key}
+                  style={st.actionBtn(key === "BATTERY_DEAD" || key === "HARDWARE_FAULT" ? "#ef4444" : "#10b981")}
+                  onClick={() => runIncident(DEMO_SENSORS_BY_FAILURE[key], key, "manual", `failure-${key}`)}
+                  disabled={running}
+                >
+                  {running && activeAction === `failure-${key}` ? "⏳ Running…" : `▶ ${profile.label}`}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeSidebarTab === "resets" && (
+            <div style={st.sectionScroll}>
+              <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4 }}>
+                Reset controls and background monitoring.
+              </div>
+              <button
+                style={st.resetBtn}
+                onClick={() => setAutoMonitor((v) => !v)}
+              >
+                {autoMonitor ? "Pause Auto Monitor" : "Resume Auto Monitor"}
+              </button>
+              <button style={st.resetBtn} onClick={() => handleReset(false)}>↺ Reset Sensors</button>
+              <button style={st.resetBtn} onClick={() => handleReset(true)}>↺ Reset Sensors + Metrics</button>
+            </div>
+          )}
+
+          {activeSidebarTab === "debug" && (
+            <div style={st.sectionScroll}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${sidebarMetricColumns}, minmax(110px, 1fr))`, gap: 8 }}>
+                <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "7px 6px" }}>
+                  <div style={{ fontSize: 8, color: "#64748b", letterSpacing: "0.07em" }}>% AUTO-HEALED</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#22c55e" }}>
+                    {metrics.autoHealedPct === null ? "--" : `${metrics.autoHealedPct.toFixed(1)}%`}
+                  </div>
+                </div>
+                <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "7px 6px" }}>
+                  <div style={{ fontSize: 8, color: "#64748b", letterSpacing: "0.07em" }}>% DISPATCH REDUCED</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#38bdf8" }}>
+                    {metrics.dispatchReducedPct === null ? "--" : `${metrics.dispatchReducedPct.toFixed(1)}%`}
+                  </div>
+                </div>
+                <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "7px 6px" }}>
+                  <div style={{ fontSize: 8, color: "#64748b", letterSpacing: "0.07em" }}>AVG DETECTION</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#e2e8f0" }}>
+                    {metrics.detectionAvg === null ? "--" : formatDuration(metrics.detectionAvg)}
+                  </div>
+                </div>
+                <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "7px 6px" }}>
+                  <div style={{ fontSize: 8, color: "#64748b", letterSpacing: "0.07em" }}>AVG RESOLUTION</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#e2e8f0" }}>
+                    {metrics.resolutionAvg === null ? "--" : formatDuration(metrics.resolutionAvg)}
+                  </div>
+                </div>
+                <div style={{ background: "#0f1f38", border: "1px solid #1e3a5f", borderRadius: 6, padding: "7px 6px" }}>
+                  <div style={{ fontSize: 8, color: "#64748b", letterSpacing: "0.07em" }}>EST. $ SAVED</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#10b981" }}>
+                    {metrics.saved === null ? "--" : formatMoney(metrics.saved)}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 8, fontSize: 10, color: "#22c55e" }}>
+                {metrics.annualPerFacility === null
+                  ? "Run a simulation to populate business outcome metrics."
+                  : `This prevents ~${formatMoney(metrics.annualPerFacility)} per facility per year.`}
+              </div>
+
+              <div style={{ marginTop: 10, padding: "8px", borderRadius: 6, border: "1px solid #1e3a5f", background: "#071226" }}>
+                <div style={{ fontSize: 10, color: "#64748b", letterSpacing: "0.08em", marginBottom: 5 }}>
+                  MQTT → API EXAMPLE
+                </div>
+                <pre style={{ margin: 0, fontSize: 10, color: "#94a3b8", whiteSpace: "pre-wrap", lineHeight: 1.45 }}>
 {`topic: facility/sensors/SEN-007/telemetry
 payload: {"battery":3,"rssi":-92,"last_ping_ms":1730}
 bridge: mosquitto -> POST /walker/api_ingest`}
-              </pre>
-            </div>
-          </>
-        )}
-
-        <button style={st.accordionBtn} onClick={() => setShowAgentFeed((v) => !v)}>
-          <span>Agent Feed</span>
-          <span>{showAgentFeed ? "▾" : "▸"}</span>
-        </button>
-        {showAgentFeed && (
-          <div ref={logRef} style={st.logBox}>
-            {log.length === 0 && (
-              <div style={{ color: "#334155", fontSize: 11, padding: "12px 0", textAlign: "center" }}>
-                Waiting for telemetry anomalies.
+                </pre>
               </div>
-            )}
-            {log.map((entry, i) => (
-              <LogEntry key={`${entry.ts}-${i}`} entry={entry} fresh={freshLog === `${entry.ts}-${entry.agent}-${entry.msg}`} />
-            ))}
-          </div>
-        )}
 
-        {workOrders.length > 0 && (
-          <>
-            <button style={st.accordionBtn} onClick={() => setShowWorkOrders((v) => !v)}>
-              <span>Work Orders ({workOrders.length})</span>
-              <span>{showWorkOrders ? "▾" : "▸"}</span>
-            </button>
-            {showWorkOrders && (
+              {selected ? (
+                <div style={st.detail}>
+                  <div style={{ color: "#475569", fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>SENSOR DETAIL</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px" }}>
+                    {[
+                      ["ID", selected.id],
+                      ["Type", `${TYPE_ICONS[selected.type]} ${selected.type}`],
+                      ["Zone", selected.zone],
+                      ["Router", selected.router],
+                      ["RSSI", `${selected.rssi} dBm`],
+                      ["Battery", `${selected.battery}%`],
+                      ["Status", selected.status.toUpperCase()],
+                      ["Active Failure", activeFailure?.sensorId === selected.id ? FAILURE_PROFILES[activeFailure.failureKey].label : "none"],
+                    ].map(([k, v]) => (
+                      <div key={`${selected.id}-${k}`} style={{ display: "contents" }}>
+                        <span style={{ color: "#475569", fontSize: 11 }}>{k}</span>
+                        <span style={{ color: STATUS_COLOR[selected.status]?.dot || "#22c55e", fontSize: 11, fontWeight: 700 }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setSelected(null)}
+                    style={{
+                      marginTop: 10,
+                      background: "transparent",
+                      border: "1px solid #1e3a5f",
+                      borderRadius: 4,
+                      color: "#475569",
+                      fontSize: 10,
+                      padding: "4px 10px",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    CLOSE ✕
+                  </button>
+                </div>
+              ) : (
+                <div style={{ marginTop: 10, color: "#475569", fontSize: 11 }}>
+                  Click any sensor node to see sensor details here.
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeSidebarTab === "agents" && (
+            <div style={st.sectionScroll}>
+              <div ref={logRef} style={st.logBox}>
+                {log.length === 0 && (
+                  <div style={{ color: "#334155", fontSize: 11, padding: "12px 0", textAlign: "center" }}>
+                    Waiting for telemetry anomalies.
+                  </div>
+                )}
+                {log.map((entry, i) => (
+                  <LogEntry key={`${entry.ts}-${i}`} entry={entry} fresh={freshLog === `${entry.ts}-${entry.agent}-${entry.msg}`} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeSidebarTab === "work_orders" && (
+            <div style={st.sectionScroll}>
+              {workOrders.length === 0 && (
+                <div style={{ color: "#334155", fontSize: 11, padding: "12px 0", textAlign: "center" }}>
+                  No work orders yet.
+                </div>
+              )}
               <div style={st.woBox}>
                 {workOrders.map((wo) => (
                   <div key={wo.id} style={st.woCard}>
@@ -1185,56 +1210,9 @@ bridge: mosquitto -> POST /walker/api_ingest`}
                   </div>
                 ))}
               </div>
-            )}
-          </>
-        )}
-
-        {selected && (
-          <>
-            <button style={st.accordionBtn} onClick={() => setShowSensorDetail((v) => !v)}>
-              <span>Sensor Detail ({selected.id})</span>
-              <span>{showSensorDetail ? "▾" : "▸"}</span>
-            </button>
-            {showSensorDetail && (
-              <div style={st.detail}>
-                <div style={{ color: "#475569", fontSize: 10, letterSpacing: "0.1em", marginBottom: 8 }}>SENSOR DETAIL</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px" }}>
-                  {[
-                    ["ID", selected.id],
-                    ["Type", `${TYPE_ICONS[selected.type]} ${selected.type}`],
-                    ["Zone", selected.zone],
-                    ["Router", selected.router],
-                    ["RSSI", `${selected.rssi} dBm`],
-                    ["Battery", `${selected.battery}%`],
-                    ["Status", selected.status.toUpperCase()],
-                    ["Active Failure", activeFailure?.sensorId === selected.id ? FAILURE_PROFILES[activeFailure.failureKey].label : "none"],
-                  ].map(([k, v]) => (
-                    <div key={`${selected.id}-${k}`} style={{ display: "contents" }}>
-                      <span style={{ color: "#475569", fontSize: 11 }}>{k}</span>
-                      <span style={{ color: STATUS_COLOR[selected.status]?.dot || "#22c55e", fontSize: 11, fontWeight: 700 }}>{v}</span>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setSelected(null)}
-                  style={{
-                    marginTop: 10,
-                    background: "transparent",
-                    border: "1px solid #1e3a5f",
-                    borderRadius: 4,
-                    color: "#475569",
-                    fontSize: 10,
-                    padding: "4px 10px",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  CLOSE ✕
-                </button>
-              </div>
-            )}
-          </>
-        )}
+            </div>
+          )}
+        </div>
       </aside>
     </div>
   );

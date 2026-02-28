@@ -16,14 +16,14 @@ with entry {
     cold  = Zone("Cold Storage",    "refrigerated", 20.0,  50.0,  300.0, 350.0, "#0ea5e9");
     assy  = Zone("Assembly Floor",  "production",   370.0, 50.0,  290.0, 300.0, "#f59e0b");
     load  = Zone("Loading Bay",     "loading",      670.0, 50.0,  210.0, 300.0, "#8b5cf6");
-    maint = Zone("Maintenance Bay", "maintenance",  370.0, 360.0, 390.0, 240.0, "#10b981");
+    maint = Zone("Maintenance Bay", "maintenance", 400.0, 360.0, 390.0, 240.0, "#10b981");
 
     wh ++> cold; wh ++> assy; wh ++> load; wh ++> maint;
 
     r1 = Router("RTR-001", "192.168.1.1", "Cold Storage",    32, 160.0, 230.0);
     r2 = Router("RTR-002", "192.168.2.1", "Assembly Floor",  68, 510.0, 175.0);
     r3 = Router("RTR-003", "192.168.3.1", "Loading Bay",     41, 760.0, 185.0);
-    r4 = Router("RTR-004", "192.168.4.1", "Maintenance Bay", 28, 565.0, 465.0);
+    r4 = Router("RTR-004", "192.168.4.1", "Maintenance Bay", 28, 595.0, 465.0);
 
     cold ++> r1; assy ++> r2; load ++> r3; maint ++> r4;
 
@@ -57,11 +57,11 @@ with entry {
 
     r3 ++> s013; r3 ++> s014; r3 ++> s015; r3 ++> s016; r3 ++> s024;
 
-    s017 = Sensor("SEN-017", "gas",       "Maintenance Bay", "RTR-004", 430.0, 450.0, "online", -53, 93, t, "Maintenance Bay Welding Gas Monitor");
-    s018 = Sensor("SEN-018", "vibration", "Maintenance Bay", "RTR-004", 520.0, 400.0, "online", -60, 80, t, "Maintenance Bay Lathe 1");
-    s019 = Sensor("SEN-019", "temp",      "Maintenance Bay", "RTR-004", 610.0, 490.0, "online", -56, 88, t, "Maintenance Bay Parts Oven Temp");
-    s020 = Sensor("SEN-020", "asset",     "Maintenance Bay", "RTR-004", 700.0, 450.0, "online", -67, 64, t, "Maintenance Bay Tool Cage Tracker");
-    s021 = Sensor("SEN-021", "temp",      "Maintenance Bay", "RTR-004", 470.0, 540.0, "online", -61, 76, t, "Maintenance Bay HVAC Return Duct");
+    s017 = Sensor("SEN-017", "gas", "Maintenance Bay", "RTR-004", 460.0, 450.0, "online", -53, 93, t, "Maintenance Bay Welding Gas Monitor");
+    s018 = Sensor("SEN-018", "vibration", "Maintenance Bay", "RTR-004", 550.0, 400.0, "online", -60, 80, t, "Maintenance Bay Lathe 1");
+    s019 = Sensor("SEN-019", "temp", "Maintenance Bay", "RTR-004", 640.0, 490.0, "online", -56, 88, t, "Maintenance Bay Parts Oven Temp");
+    s020 = Sensor("SEN-020", "asset", "Maintenance Bay", "RTR-004", 730.0, 450.0, "online", -67, 64, t, "Maintenance Bay Tool Cage Tracker");
+    s021 = Sensor("SEN-021", "temp", "Maintenance Bay", "RTR-004", 500.0, 540.0, "online", -61, 76, t, "Maintenance Bay HVAC Return Duct");
 
     r4 ++> s017; r4 ++> s018; r4 ++> s019; r4 ++> s020; r4 ++> s021;
 
